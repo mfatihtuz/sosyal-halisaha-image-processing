@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Halısaha Maç Analizi — Proje Devir Raporu</title>
+<style>
+:root{
+  --zemin:#0f0f12; --kart:#17171c; --kart2:#1c1c22; --cizgi:#2a2a31;
+  --yazi:#e8e8ea; --soluk:#9a9aa4; --mavi:#4da3ff; --turuncu:#ff9f43;
+  --yesil:#4ade80; --kirmizi:#f87171; --sari:#fbbf24;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--zemin);color:var(--yazi);
+  font:15px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+.sarmal{max-width:1080px;margin:0 auto;padding:48px 28px 120px}
+h1{font-size:34px;line-height:1.2;margin:0 0 10px;letter-spacing:-.5px}
+h2{font-size:23px;margin:64px 0 6px;padding-top:26px;border-top:1px solid var(--cizgi);
+  letter-spacing:-.3px}
+h3{font-size:17px;margin:34px 0 8px;color:var(--yazi)}
+h4{font-size:14px;margin:22px 0 6px;color:var(--soluk);text-transform:uppercase;
+  letter-spacing:.09em}
+p{margin:12px 0}
+a{color:var(--mavi)}
+code{background:#23232b;padding:2px 6px;border-radius:4px;font-size:13px;
+  font-family:"SF Mono",Consolas,Monaco,monospace}
+pre{background:#0b0b0e;border:1px solid var(--cizgi);border-radius:9px;padding:16px 18px;
+  overflow-x:auto;font-size:12.5px;line-height:1.6;
+  font-family:"SF Mono",Consolas,Monaco,monospace;color:#cfd3da}
+.ustbilgi{color:var(--soluk);font-size:14px;margin-bottom:34px}
+.rozet{display:inline-block;padding:3px 11px;border-radius:20px;font-size:12px;
+  font-weight:600;letter-spacing:.02em}
+.r-ok{background:rgba(74,222,128,.14);color:var(--yesil)}
+.r-kismi{background:rgba(251,191,36,.14);color:var(--sari)}
+.r-yok{background:rgba(248,113,113,.14);color:var(--kirmizi)}
+.r-notr{background:rgba(154,154,164,.14);color:var(--soluk)}
+.kutu{background:var(--kart);border:1px solid var(--cizgi);border-radius:11px;
+  padding:18px 22px;margin:18px 0}
+.kutu.vurgu{border-left:3px solid var(--mavi)}
+.kutu.uyari{border-left:3px solid var(--sari)}
+.kutu.hata{border-left:3px solid var(--kirmizi)}
+.kutu.iyi{border-left:3px solid var(--yesil)}
+.kutu h4{margin-top:0}
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:13.5px}
+th{text-align:left;color:var(--soluk);font-size:11.5px;text-transform:uppercase;
+  letter-spacing:.07em;padding:9px 12px;border-bottom:1px solid var(--cizgi);font-weight:600}
+td{padding:10px 12px;border-bottom:1px solid #202027;vertical-align:top}
+tr:last-child td{border-bottom:none}
+tbody tr:nth-child(even){background:#141419}
+.sayi{font-variant-numeric:tabular-nums;white-space:nowrap}
+ul,ol{margin:12px 0;padding-left:22px}
+li{margin:7px 0}
+.ozet{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:12px;margin:26px 0}
+.ozet div{background:var(--kart);border:1px solid var(--cizgi);border-radius:10px;padding:15px 17px}
+.ozet .b{font-size:26px;font-weight:700;letter-spacing:-.5px}
+.ozet .e{font-size:12px;color:var(--soluk);margin-top:3px;line-height:1.4}
+.icindekiler{background:var(--kart);border:1px solid var(--cizgi);border-radius:11px;
+  padding:18px 24px;margin:30px 0}
+.icindekiler ol{margin:6px 0;columns:2;column-gap:34px}
+.icindekiler a{text-decoration:none}
+.icindekiler a:hover{text-decoration:underline}
+.akis{margin:22px 0}
+.dip{color:var(--soluk);font-size:13px}
+hr{border:none;border-top:1px solid var(--cizgi);margin:30px 0}
+.etiket{color:var(--soluk);font-size:12px;letter-spacing:.06em;text-transform:uppercase}
+</style>
+</head>
+<body>
+<div class="sarmal">
+
+<h1>Halısaha Maç Analizi</h1>
+<div class="ustbilgi">Proje devir raporu &nbsp;·&nbsp; 31 Ağustos 2026 &nbsp;·&nbsp;
+Sıfırdan yeniden yazım için hazırlandı</div>
+
+<div class="kutu vurgu">
+<h4>Bir cümlede</h4>
+<p style="margin-bottom:0">Halısaha tesisinde kurulu iki sabit kameranın kaydından, oyuncuların
+saha üzerindeki konumunu çıkarıp ısı haritası ve koşu metrikleri üreten bir bilgisayarlı görü
+hattı. <strong>Konum ölçümü çalışıyor ve doğrulandı. Oyuncu kimliğinin maç boyunca sabit
+kalması kısmen çözüldü. Takım ayrımı otomatik yapılamıyor, elle işaretleniyor.</strong></p>
+</div>
+
+<div class="ozet">
+  <div><div class="b" style="color:var(--yesil)">0,36 m</div>
+       <div class="e">Kalibrasyon hatası (kamera 1 RMS)</div></div>
+  <div><div class="b" style="color:var(--yesil)">0,85 m</div>
+       <div class="e">İki kameranın aynı oyuncuyu gösterme farkı (medyan)</div></div>
+  <div><div class="b" style="color:var(--yesil)">%100</div>
+       <div class="e">Oyuncuların zaman kapsaması (sabit kadro sonrası)</div></div>
+  <div><div class="b" style="color:var(--sari)">%6,6</div>
+       <div class="e">Tahminle doldurulan konum oranı</div></div>
+  <div><div class="b" style="color:var(--kirmizi)">Elle</div>
+       <div class="e">Takım ayrımı — otomatik çözülemedi</div></div>
+  <div><div class="b" style="color:var(--soluk)">0 TL</div>
+       <div class="e">Donanım maliyeti</div></div>
+</div>
+
+<div class="icindekiler">
+<h4 style="margin-top:0">İçindekiler</h4>
+<ol>
+<li><a href="#k1">Projenin kapsam geçmişi</a></li>
+<li><a href="#k2">Elenen yollar ve kanıtları</a></li>
+<li><a href="#k3">Nihai mimari</a></li>
+<li><a href="#k4">Dosyalar ve sorumlulukları</a></li>
+<li><a href="#k5">Veri şemaları</a></li>
+<li><a href="#k6">Kalibrasyon</a></li>
+<li><a href="#k7">Tespit ve takip</a></li>
+<li><a href="#k8">Kimlik katmanı</a></li>
+<li><a href="#k9">Takım ayrımı</a></li>
+<li><a href="#k10">Metrikler</a></li>
+<li><a href="#k11">Ölçülmüş sonuçlar</a></li>
+<li><a href="#k12">Açık sorunlar</a></li>
+<li><a href="#k13">Yeniden yazarken tuzaklar</a></li>
+<li><a href="#k14">Parametreler</a></li>
+<li><a href="#k15">Ortam ve kurulum</a></li>
+</ol>
+</div>
+<h2 id="k1">1. Projenin kapsam geçmişi</h2>
+
+<p>Proje üç kez temelden değişti. Bu değişimlerin gerekçelerini bilmek, yeniden yazarken aynı
+duvarlara çarpmamak için gerekli.</p>
+
+<h3>Aşama 1 — DIY bileklik (terk edildi)</h3>
+<p>İlk hedef Catapult benzeri giyilebilir bir cihazdı: bileğe takılan, koşu mesafesi ve konum
+ölçen bir ünite. İki nedenle terk edildi.</p>
+<ul>
+<li><strong>Konum ölçülemiyor.</strong> Saha brandayla kapalı, GNSS sinyali yok. Konum için
+dışarıdan referans şart; referanssız IKS (ivmeölçer + jiroskop) ivmeyi iki kez integre eder ve
+hata zamanın karesiyle büyür. Bilekte 60 dakika sonra oyuncu sahadan kilometrelerce ötede çıkar.</li>
+<li><strong>Kalan metrikler zaten satılıyor.</strong> Konumu bırakıp sadece adım/mesafe/tempo
+ölçülseydi, üretilen şey Apple Watch veya Garmin'in halihazırda ve daha iyi kalibre edilmiş
+biçimde ürettiği verinin kötü bir kopyası olurdu.</li>
+</ul>
+
+<h3>Aşama 2 — UWB yerel konumlandırma (terk edildi)</h3>
+<p>Kapalı alanda konum için sektör standardı çözüm: sahaya sabit UWB anchor'ları koyup
+üçgenleme yapmak. Catapult'ın kapalı salon ürünü de tam olarak bunu yapıyor. Terk edilme
+nedeni teknik değil, tedarik ve maliyet.</p>
+<table>
+<thead><tr><th>Kalem</th><th>Durum (31.08.2026, e-komponent)</th></tr></thead>
+<tbody>
+<tr><td>DWM1000</td><td>Stok yok — 1.569,80 TL etiketli</td></tr>
+<tr><td>BU01 (Ai-Thinker)</td><td>Stok yok — 1.801,02 TL</td></tr>
+<tr><td>DWM1001-DEV</td><td>Stok yok — 2.461,93 TL</td></tr>
+<tr><td>DWM1001</td><td>Stokta — 3.573,70 TL</td></tr>
+<tr><td>DW1000 çıplak entegre</td><td>Stokta — 667,84 TL, 48 bacaklı QFN, kendi RF kartı gerekir</td></tr>
+</tbody>
+</table>
+<p>4 anchor + 7 etiket = 11 birim. Bütçe tavanı 10.000 TL idi. Ayrıca çoklu anchor/etiket için
+zaman bölmeli erişim kodlaması gerekiyor; Makerfabs kendi kütüphanelerinin bunu desteklemediğini
+ve bu konuda destek veremeyeceğini açıkça belirtiyor.</p>
+
+<h3>Aşama 3 — Kamera tabanlı analiz (yürürlükte)</h3>
+<p>Tesiste zaten iki sabit kamera var ve kayıtlar sosyalhalisaha.com üzerinden indirilebiliyor.
+Bu, önceki iki aşamanın tüm engellerini aynı anda kaldırdı:</p>
+<table>
+<thead><tr><th>Problem</th><th>Bileklik / UWB yaklaşımında</th><th>Kamera yaklaşımında</th></tr></thead>
+<tbody>
+<tr><td>Konum referansı</td><td>Branda GNSS'i engelliyor, UWB parçası yurt içinde yok</td>
+    <td>Kameranın kendisi referans, ek donanım yok</td></tr>
+<tr><td>Zaman senkronu</td><td>Takım şekli için cihazlar arası milisaniye senkron gerekiyor</td>
+    <td>Tek video akışı, senkron doğası gereği var</td></tr>
+<tr><td>Maliyet</td><td>5.000–35.000 TL bandı</td><td>0 TL</td></tr>
+<tr><td>Kapsam</td><td>Sadece cihaz takan 7 kişi</td><td>Sahadaki herkes, rakip dahil</td></tr>
+<tr><td>Lojistik</td><td>Şarj, ter, darbe, dağıtım</td><td>Yok</td></tr>
+</tbody>
+</table>
+
+<div class="kutu iyi">
+<h4>Yeniden yazarken</h4>
+<p style="margin-bottom:0">Aşama 1 ve 2'yi tekrar değerlendirmeye gerek yok. Kamera yolu
+donanım açısından üstün ve tek gerçek kısıtı yazılım tarafında.</p>
+</div>
+
+<h2 id="k2">2. Elenen yollar ve kanıtları</h2>
+
+<p>Aşağıdaki yaklaşımlar denendi ve <strong>ölçülerek</strong> elendi. Yeniden yazarken bunlara
+zaman harcamamak için sonuçları burada.</p>
+
+<table>
+<thead><tr><th>Yaklaşım</th><th>Amaç</th><th>Ölçülen sonuç</th><th>Karar</th></tr></thead>
+<tbody>
+<tr>
+  <td>Görüntüyü düzleştirip (undistort) homografi</td><td>Lens bozulmasını gidermek</td>
+  <td>Balık gözü görüntüyü dikdörtgene açmak kenarları sonsuza esnetiyor; merkez düzelirken
+      kenarlar tamamen dağılıyor, kullanılabilir alan yarı sahanın altına iniyor</td>
+  <td><span class="rozet r-yok">Elendi</span></td>
+</tr>
+<tr>
+  <td>Brown-Conrady modeli (k1,k2,k3) + &quot;çizgiler ne kadar düz&quot; ölçütü</td>
+  <td>Lens katsayılarını bulmak</td>
+  <td>Aşırı serbestlik: k2=-5,2 ve k3=8,5 gibi fiziksel anlamı olmayan değerler bulup ölçütü
+      memnun etti, gerçek geometriyi yakalamadı. Nokta hatası 1,9–2,5 m</td>
+  <td><span class="rozet r-yok">Elendi</span></td>
+</tr>
+<tr>
+  <td>ReID açık BoT-SORT (<code>with_reid: true</code>)</td><td>Kimlik takasını azaltmak</td>
+  <td>45 sn üstü kimlik 27 → 28. İsimli oyunculardaki gözlem oranı %50 → %52. İstatistiksel
+      olarak fark yok</td>
+  <td><span class="rozet r-yok">Elendi</span></td>
+</tr>
+<tr>
+  <td>Forma renginden takım ayrımı</td><td>Yelekli / serbest ayrımı</td>
+  <td>Kimlikler arası doygunluk 7 ile 118 arasında kesintisiz dağılıyor, en büyük boşluk 17.
+      Salon ışığı ve mavi duvar panelleri beyaz formayı maviye çeviriyor</td>
+  <td><span class="rozet r-yok">Elendi</span></td>
+</tr>
+<tr>
+  <td>Hareket korelasyonundan takım ayrımı</td><td>Yelekli / serbest ayrımı</td>
+  <td>Tüm oyuncu çiftlerinin x konumu korelasyonu +0,34 ile +0,96 arasında, yani <em>herkes</em>
+      birlikte hareket ediyor. 30×50 m sahada iki takım da topun peşinde aynı anda gidip geliyor.
+      Büyük sahada işe yarar, halısahada yaramaz</td>
+  <td><span class="rozet r-yok">Elendi</span></td>
+</tr>
+<tr>
+  <td>Kimlik yaratıp öldüren serbest takip + parça dikme</td><td>Oyuncu kimliği</td>
+  <td>14 kişi için 45 sn üstü 27–28 kimlik, gözlemlerin %58'i isimsiz parçalarda kaldı</td>
+  <td><span class="rozet r-yok">Sabit kadroyla değiştirildi</span></td>
+</tr>
+<tr>
+  <td>Kartta yeniden tespit + en yakın oyuncuya bağlama</td><td>Kimlik kartı etiketleri</td>
+  <td>Yakın duran oyuncularda ve uzak yarıda yanlış eşleşme. Bilgi zaten birleştirme adımında
+      mevcuttu, yeniden tahmin gereksizdi</td>
+  <td><span class="rozet r-yok">Piksel taşımayla değiştirildi</span></td>
+</tr>
+</tbody>
+</table>
+<h2 id="k3">3. Nihai mimari</h2>
+
+<div class="akis">
+<svg viewBox="0 0 1000 470" width="100%" xmlns="http://www.w3.org/2000/svg"
+     font-family="-apple-system,Segoe UI,Roboto,Arial" font-size="13">
+  <defs>
+    <marker id="ok" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+      <path d="M0,0 L9,4.5 L0,9 z" fill="#4a4a55"/>
+    </marker>
+    <style>
+      .kt{fill:#1c1c22;stroke:#2f2f38;stroke-width:1.2;rx:8}
+      .kt2{fill:#16222f;stroke:#2b4a6b;stroke-width:1.2}
+      .kt3{fill:#2a1f14;stroke:#6b4a2b;stroke-width:1.2}
+      .b{fill:#e8e8ea;font-weight:600}
+      .a{fill:#9a9aa4;font-size:11px}
+      .l{stroke:#4a4a55;stroke-width:1.4;fill:none;marker-end:url(#ok)}
+    </style>
+  </defs>
+
+  <rect class="kt kt2" x="20" y="18" width="200" height="52" rx="8"/>
+  <text class="b" x="120" y="40" text-anchor="middle">kamera1.mp4</text>
+  <text class="a" x="120" y="57" text-anchor="middle">1920×1080, 30,1 fps, ~59 dk</text>
+
+  <rect class="kt kt2" x="250" y="18" width="200" height="52" rx="8"/>
+  <text class="b" x="350" y="40" text-anchor="middle">kamera2.mp4</text>
+  <text class="a" x="350" y="57" text-anchor="middle">sosyalhalisaha.com / IDM</text>
+
+  <rect class="kt" x="520" y="18" width="240" height="52" rx="8"/>
+  <text class="b" x="640" y="40" text-anchor="middle">kalibrasyon.py</text>
+  <text class="a" x="640" y="57" text-anchor="middle">kamera başına bir kez · λ + H</text>
+
+  <rect class="kt" x="790" y="18" width="190" height="52" rx="8"/>
+  <text class="b" x="885" y="40" text-anchor="middle">kontrol.py</text>
+  <text class="a" x="885" y="57" text-anchor="middle">aynalama kontrolü</text>
+  <path class="l" d="M765,44 L786,44"/>
+
+  <path class="l" d="M120,74 L120,104"/>
+  <path class="l" d="M350,74 L350,104"/>
+  <path class="l" d="M640,74 L640,92 L370,92 L370,104"/>
+
+  <rect class="kt" x="20" y="108" width="430" height="56" rx="8"/>
+  <text class="b" x="235" y="131" text-anchor="middle">takip.py &nbsp;— &nbsp;YOLO11m + BoT-SORT</text>
+  <text class="a" x="235" y="149" text-anchor="middle">10 fps örnekleme · ayak noktası → saha metresi · k1_izler.csv, k2_izler.csv</text>
+
+  <path class="l" d="M235,168 L235,196"/>
+
+  <rect class="kt" x="20" y="200" width="430" height="72" rx="8"/>
+  <text class="b" x="235" y="223" text-anchor="middle">birlestir.py</text>
+  <text class="a" x="235" y="241" text-anchor="middle">iki kamerayı saha üzerinde kaynaştır · SABİT KADROLU takip</text>
+  <text class="a" x="235" y="257" text-anchor="middle">zayıf yuvaları ele · adlandır → birlesik.csv</text>
+
+  <path class="l" d="M450,236 L500,236"/>
+  <rect class="kt kt3" x="504" y="208" width="250" height="56" rx="8"/>
+  <text class="b" x="629" y="231" text-anchor="middle">--yelek 3,5,7,…</text>
+  <text class="a" x="629" y="249" text-anchor="middle">ELLE: yelekli oyuncu numaraları</text>
+
+  <path class="l" d="M235,276 L235,300"/>
+  <path class="l" d="M235,300 L120,300 L120,326"/>
+  <path class="l" d="M235,300 L370,300 L370,326"/>
+  <path class="l" d="M235,300 L620,300 L620,326"/>
+  <path class="l" d="M235,300 L870,300 L870,326"/>
+
+  <rect class="kt" x="20" y="330" width="200" height="62" rx="8"/>
+  <text class="b" x="120" y="353" text-anchor="middle">harita.py</text>
+  <text class="a" x="120" y="371" text-anchor="middle">takım ve oyuncu</text>
+  <text class="a" x="120" y="385" text-anchor="middle">ısı haritaları</text>
+
+  <rect class="kt" x="270" y="330" width="200" height="62" rx="8"/>
+  <text class="b" x="370" y="353" text-anchor="middle">metrik.py → tablo.py</text>
+  <text class="a" x="370" y="371" text-anchor="middle">rol, mesafe, hız, sprint</text>
+  <text class="a" x="370" y="385" text-anchor="middle">tablo + 4 grafik</text>
+
+  <rect class="kt" x="520" y="330" width="200" height="62" rx="8"/>
+  <text class="b" x="620" y="353" text-anchor="middle">kimlik_kart.py</text>
+  <text class="a" x="620" y="371" text-anchor="middle">seçilen anlarda</text>
+  <text class="a" x="620" y="385" text-anchor="middle">etiketli kareler</text>
+
+  <rect class="kt" x="770" y="330" width="200" height="62" rx="8"/>
+  <text class="b" x="870" y="353" text-anchor="middle">video_cikti.py</text>
+  <text class="a" x="870" y="371" text-anchor="middle">işaretli video + iz</text>
+  <text class="a" x="870" y="385" text-anchor="middle">+ üstten görünüm</text>
+
+  <rect class="kt" x="20" y="416" width="950" height="42" rx="8"/>
+  <text class="b" x="495" y="442" text-anchor="middle">arayuz.py &nbsp;— &nbsp;tkinter, tüm adımları sırayla çalıştırır, her koşu kendi klasörüne yazar</text>
+</svg>
+</div>
+
+<div class="kutu vurgu">
+<h4>Mimarinin iki taşıyıcı kararı</h4>
+<ol style="margin-bottom:0">
+<li><strong>Görüntü asla warp edilmez.</strong> Sadece oyuncunun ayak noktası dönüştürülür.
+YOLO orijinal net kare üzerinde çalışır, kenar bozulması tespit kalitesini düşürmez.</li>
+<li><strong>Kimlik yaratılmaz ve öldürülmez.</strong> Sabit sayıda yuva açılır, her kare bu
+yuvalara atanır. Parçalanma tanım gereği imkânsız hale gelir.</li>
+</ol>
+</div>
+
+<h2 id="k4">4. Dosyalar ve sorumlulukları</h2>
+
+<table>
+<thead><tr><th>Dosya</th><th>Ne yapar</th><th>Girdi → Çıktı</th></tr></thead>
+<tbody>
+<tr><td><code>kalibrasyon.py</code></td>
+    <td>Lens bozulması (tek parametreli bölme modeli) + saha homografisini birlikte çözer.
+        Çizgi tıklamaları da kısıt olarak kullanılır</td>
+    <td>video + tıklama → <code>&lt;kamera&gt;_kalibrasyon.json</code>, <code>dogrulama_*.png</code></td></tr>
+<tr><td><code>kontrol.py</code></td>
+    <td>İki kalibrasyonun tutarlılığını denetler, aynalama hatasını yakalar ve düzeltir</td>
+    <td>2 × json → uyarı / düzeltilmiş json</td></tr>
+<tr><td><code>takip.py</code></td>
+    <td>YOLO11m ile kişi tespiti, BoT-SORT takip, ayak noktasının sahaya yansıtılması,
+        gövde renginin ölçülmesi</td>
+    <td>video + json → <code>k&lt;N&gt;_izler.csv</code></td></tr>
+<tr><td><code>birlestir.py</code></td>
+    <td>İki kamerayı saha üzerinde kaynaştırır, sabit kadrolu kimlik yürütür, zayıf yuvaları
+        eler, adlandırır</td>
+    <td>2 × izler.csv → <code>birlesik.csv</code></td></tr>
+<tr><td><code>harita.py</code></td>
+    <td>Takım ve oyuncu bazlı ısı haritaları</td>
+    <td>birlesik.csv → <code>isi_takim.png</code>, <code>isi_oyuncu.png</code></td></tr>
+<tr><td><code>metrik.py</code></td>
+    <td>Rol tespiti, mesafe, hız, sprint, ivme olayları, saha dağılımı</td>
+    <td>birlesik.csv → <code>oyuncu_metrik.csv</code></td></tr>
+<tr><td><code>tablo.py</code></td>
+    <td>Tablo + 4 grafik (mesafe sıralaması, tempo profili, örümcek, saha kullanımı)</td>
+    <td>oyuncu_metrik.csv → <code>oyuncu_tablo.png</code></td></tr>
+<tr><td><code>kimlik_kart.py</code></td>
+    <td>Belirli anlarda etiketli kareler. Yeniden tespit yapmaz, taşınan piksel bilgisini kullanır</td>
+    <td>video + birlesik.csv → <code>kart_*.png</code></td></tr>
+<tr><td><code>video_cikti.py</code></td>
+    <td>İşaretli video: kutu, etiket, 1,5 sn iz, sağ altta üstten görünüm</td>
+    <td>video + birlesik.csv → <code>takip_*.mp4</code></td></tr>
+<tr><td><code>arayuz.py</code></td>
+    <td>tkinter arayüz. Video/kalibrasyon seçimi, dakika aralığı, kadro, takım filtresi,
+        yelek listesi. Her koşu kendi klasörüne</td>
+    <td>—</td></tr>
+</tbody>
+</table>
+
+<p class="dip">Her dosyada <code>--selftest</code> var. Sentetik veriyle çalışır, video veya
+GPU gerektirmez.</p>
+<h2 id="k5">5. Veri şemaları</h2>
+
+<h4>&lt;kamera&gt;_kalibrasyon.json</h4>
+<pre>{
+  "lam":  -0.5028,          // bölme modeli bozulma katsayısı (tek parametre)
+  "H":    [[...],[...],[...]],  // 3×3: ideal piksel → saha metresi
+  "px":   [1920, 1080],
+  "rms_m": 0.363,           // tıklanan kısıtlardaki ortalama hata (metre)
+  "uzunluk": 50.0, "genislik": 30.0
+}</pre>
+
+<h4>k&lt;N&gt;_izler.csv &nbsp;<span class="etiket">— kamera başına ham tespit</span></h4>
+<pre>t_s, iz_id, x_m, y_m, guven, u_px, v_px, g_px, y_px, h, s, v</pre>
+<ul>
+<li><code>t_s</code> videonun mutlak zamanı (pencere başından değil). İki kamera bu eksende hizalanır.</li>
+<li><code>iz_id</code> kameranın kendi takip numarası. <strong>Güvenilmez, aşağı akışta atılır.</strong></li>
+<li><code>u_px, v_px</code> kutunun alt orta noktası (ayak). <code>g_px, y_px</code> kutu genişlik/yükseklik.</li>
+<li><code>h, s, v</code> gövde bölgesinin medyan HSV'si.</li>
+</ul>
+<div class="kutu hata">
+<h4>Kritik</h4>
+<p style="margin-bottom:0">Başlıktaki isim sayısı satırdaki değer sayısıyla birebir aynı olmalı.
+Bu proje boyunca bir kez uyuşmadı ve <code>DictReader</code> sütunları sessizce kaydırdı; renk
+sütunundan kutu genişliği okundu. Başlık tek bir sabitte tutulmalı ve selftest uzunluk
+karşılaştırması yapmalı.</p>
+</div>
+
+<h4>birlesik.csv &nbsp;<span class="etiket">— hattın ana çıktısı</span></h4>
+<pre>t_s, oyuncu, x_m, y_m, takim, kaynak, tahmin, h, s,
+u1, v1, g1, y1,   u2, v2, g2, y2</pre>
+<ul>
+<li><code>oyuncu</code>: takım bilinmiyorsa <code>P1..Pn</code>, elle yelek listesi verilmişse
+    <code>X1..X7</code> (yelekli) / <code>Y1..Y7</code> (serbest).</li>
+<li><code>takim</code>: 1 yelekli, 0 serbest, −1 bilinmiyor.</li>
+<li><code>kaynak</code>: 12 iki kamera, 1 veya 2 tek kamera, 0 gözlem yok.</li>
+<li><code>tahmin</code>: 1 ise konum gözlemden değil kestirimden geliyor.</li>
+<li><code>u1..y2</code>: <strong>her kameradaki piksel kutusu.</strong> Kimlik kartı ve işaretli
+    video bunu doğrudan kullanır; yeniden tespit ve eşleştirme yapılmaz. Gözlem yoksa −1.</li>
+</ul>
+
+<h4>oyuncu_metrik.csv</h4>
+<pre>oyuncu, takim, rol, sure_sn, kapsama_%, mesafe_m,
+ort_hiz_kmh, maks_hiz_kmh, sprint, yuksek_siddet_sn,
+hizlanma, yavaslama, ort_x_m, ort_y_m, sol_%, orta_%, sag_%</pre>
+
+<h2 id="k6">6. Kalibrasyon</h2>
+
+<h3>Neden iki aşama değil, tek aşama</h3>
+<p>Saha kenar çizgisi görüntüde kavisli. Homografi doğrusal bir dönüşümdür ve doğruyu her zaman
+doğruya taşır, dolayısıyla kavisli bir çizgiyi düz bir kenara oturtamaz. Lens bozulmasının
+modellenmesi zorunlu. Ama bunu ayrı bir adımda &quot;çizgiler ne kadar düz&quot; ölçütüyle
+çözmek başarısız oldu (Bölüm 2). Çalışan kurgu:</p>
+
+<div class="kutu iyi">
+<h4>Çalışan yöntem</h4>
+<ol>
+<li><strong>Tek parametreli bölme modeli:</strong>
+    <code>x<sub>ideal</sub> = x<sub>bozuk</sub> / (1 + λ·r²)</code>, koordinatlar merkeze göre
+    ve yarım köşegene bölünerek normalize. Tek serbestlik = kaçacak yer yok.</li>
+<li><strong>Çizgi tıklamaları kısıt olarak:</strong> kenar çizgisindeki her nokta
+    &quot;Y=0&quot;, orta çizgideki her nokta &quot;X=25&quot; diyen bir denklem. 7 nokta
+    yerine onlarca kısıt.</li>
+<li><strong>Doğrudan metre hatası küçültülür:</strong> λ ve H birlikte
+    <code>scipy.optimize.least_squares</code> ile çözülür. Optimize edilen ölçütle önemsenen şey
+    aynı olur.</li>
+<li><strong>Görsel doğrulama:</strong> saha ızgarası orijinal kareye geri çizilip PNG kaydedilir.
+    Tıklanmayan bölgelerdeki hatayı da gösterir; sayısal RMS bunu göstermez.</li>
+</ol>
+</div>
+
+<h3>Ölçülen sonuç</h3>
+<table>
+<thead><tr><th>Kamera</th><th>λ</th><th>RMS hata</th><th>Not</th></tr></thead>
+<tbody>
+<tr><td>Kamera 1</td><td class="sayi">−0,5028</td><td class="sayi">0,363 m</td><td>—</td></tr>
+<tr><td>Kamera 2</td><td class="sayi">−0,5001</td><td class="sayi">0,310 m</td>
+    <td>X ekseni aynalanmıştı, <code>kontrol.py --ayna x</code> ile düzeltildi</td></tr>
+</tbody>
+</table>
+
+<div class="kutu hata">
+<h4>Aynalama tuzağı — bu proje bir kez buna düştü</h4>
+<p>Kamera 2 kalibre edilirken yakın kale yanlış kaleyle etiketlendi. Aynalama geçerli bir
+projektif dönüşüm olduğu için <strong>uyum hatası 0,31 m gibi gayet iyi çıktı</strong> ve hata
+kendini hiç belli etmedi. Yalnızca iki kameranın ima ettiği konumları karşılaştırınca yakalandı:
+her ikisi de sahanın aynı köşesinde duruyor görünüyordu, ki bu fiziksel olarak imkânsız.</p>
+<p style="margin-bottom:0">Düzeltme tıklamayı tekrarlamayı gerektirmez, homografiyi bir ayna
+matrisiyle çarpmak yeterlidir. Yeniden yazarken bu kontrolü otomatik yap.</p>
+</div>
+
+<h3>Koordinat sistemi kuralı</h3>
+<pre>Kale A  = kamera 1'in arkasında durduğu kale        → X = 0
+Kale B  = karşı kale                                 → X = uzunluk
+Kenar 1 = kamera 1'in görüntüsünde ÜSTTE kalan kenar → Y = 0
+Kenar 2 = altta kalan kenar                          → Y = genişlik</pre>
+<p>Kamera 2 kalibre edilirken <strong>aynı fiziksel</strong> kale ve kenar seçilmeli, görüntüde
+ters tarafta duruyor olsalar bile.</p>
+
+<div class="kutu uyari">
+<h4>Saha ölçüsü</h4>
+<p style="margin-bottom:0">50×30 m <strong>varsayım</strong>, gerçek ölçü bilinmiyor. Kısıtlar
+&quot;bu çizgi X=25'tir&quot; biçiminde kurulduğu için gerçek ölçü öğrenildiğinde kalibrasyonu
+tekrarlamak <em>gerekmez</em>; çıktı koordinatlarını oranla ölçeklemek matematiksel olarak birebir
+aynı sonucu verir (<code>takip.py --saha 45x28</code>). Mesafe metrikleri buna orantılı değişir.</p>
+</div>
+<h2 id="k7">7. Tespit ve takip</h2>
+
+<table>
+<thead><tr><th>Karar</th><th>Değer</th><th>Gerekçe</th></tr></thead>
+<tbody>
+<tr><td>Model</td><td>YOLO11m, <code>classes=[0]</code></td>
+    <td>COCO ön eğitimli kişi sınıfı yeterli çıktı; ince ayar gerekmedi</td></tr>
+<tr><td>Girdi çözünürlüğü</td><td>1920</td><td>Uzak yarıdaki 15–40 piksellik oyuncular için şart</td></tr>
+<tr><td>Örnekleme</td><td>10 fps (30,1 fps'ten her 3. kare)</td>
+    <td>Sprint hâlindeki oyuncu kareler arası ~0,8 m yol alır; ısı haritası ve mesafe için fazlasıyla yeterli, işlem yükü üçte bire iner</td></tr>
+<tr><td>Güven eşiği</td><td>0,25</td><td>—</td></tr>
+<tr><td>Takip</td><td>BoT-SORT</td><td>Kimlikleri aşağı akışta atıldığı için seçim kritik değil</td></tr>
+<tr><td>Konum noktası</td><td>Kutunun alt orta noktası</td><td>Ayak izi ≈ zemin düzlemi</td></tr>
+<tr><td>Saha dışı eleme</td><td>Sınırın 3 m dışı</td><td>Tribün, kenar, yansımalar</td></tr>
+</tbody>
+</table>
+
+<h3>Renk ölçümü</h3>
+<p>Gövde bölgesi kutunun üst kısmından alınır (yükseklikte %15–45, genişlikte ortadaki %50).
+Çim tonundaki ve çok karanlık pikseller elenir, kalanın medyan HSV'si yazılır.</p>
+<div class="kutu hata">
+<h4>Yapılmaması gereken</h4>
+<p style="margin-bottom:0">Kalan piksellerin <strong>en doygun olanlarını seçmek</strong>. Bu
+denendi ve beyaz/gri formalı bir oyuncuda en doygun pikseller formanın kendisi değil arkadaki
+mavi duvar panelleri oldu; herkes mavi ölçüldü ve 21 kimliğin 19'u 195–246° bandına düştü.
+Beyaz forma <em>düşük doygunluk</em> vermeli — takım ayrımı tam olarak buna dayanır.</p>
+</div>
+
+<h3>İki kameranın kaynaştırılması</h3>
+<p>Aynı zaman damgasındaki tespitler saha koordinatında Macar algoritmasıyla eşleştirilir,
+eşik 2,0 m. Eşleşenler ortalanır, renk olarak daha doygun olanınki alınır, <strong>her iki
+kameranın piksel kutusu da saklanır.</strong> Eşleşmeyenler tek kamera kaydı olarak geçer.</p>
+
+<h2 id="k8">8. Kimlik katmanı</h2>
+
+<h3>Neden serbest takip başarısız oldu</h3>
+<p>Kameraların kendi <code>iz_id</code> değerleri kullanılamaz: 120 saniyede kamera 1'de 146,
+kamera 2'de 115 farklı numara üretiliyor — oysa sahada 14 kişi var. Saha üzerinde kimlik yaratıp
+öldüren bir katman denendi; parça dikme, renk kısıtı, hız kısıtı eklendi. En iyi hâlinde bile
+14 kişi için 45 saniyeden uzun 27–28 kimlik kaldı ve gözlemlerin %58'i isimsiz parçalarda.</p>
+
+<p>Teşhis kritik: <strong>eş zamanlı canlı kimlik sayısı ortalama 14,5 / medyan 14</strong> idi,
+yani füzyon her karede doğru sayıda kişi buluyordu. Sorun sayıda değil, kimliklerin sürekli
+yeniden doğmasındaydı. Sürekli yan yana giden kimlik çifti sayısı 0 — yani çift kayıt yoktu.</p>
+
+<div class="kutu iyi">
+<h4>Çözüm: sabit kadrolu takip</h4>
+<ol>
+<li>Kadro sayısı kadar yuva bir kez açılır (varsayılan: kare başına tespit sayısının medyanı).</li>
+<li>Her kare, tahmin edilen yuva konumlarıyla gözlemler arasında Macar ataması yapılır.
+    Kapı yalnızca <strong>mesafeye</strong> bakar (3,5 m); renk kapıyı genişletmez, yalnızca
+    kapı içinde ayırt edici olarak maliyete eklenir.</li>
+<li>Gözlem bulunamayan yuva tahminle yürür ve <code>tahmin=1</code> işaretlenir.</li>
+<li>Fazla gözlem atılır. Kimlik doğmaz, ölmez.</li>
+</ol>
+<p style="margin-bottom:0"><strong>Sonuç:</strong> 14 yuva → 14 kimlik, hepsi pencerenin %100'ünü
+kapsıyor, tahmin oranı %12.</p>
+</div>
+
+<h3>Zayıf yuva elemesi</h3>
+<p>Gözleminin %40'ından azı gerçek tespit olan yuva oyuncu sayılmaz. Bu veride sağ kale
+civarında böyle bir yuva çıktı — verisinin %85'i kestirimdi, muhtemelen kale arkasında duran
+biri. Elendikten sonra <strong>13 oyuncu ve tahmin oranı %6,6.</strong></p>
+
+<h3>Adlandırma</h3>
+<p>Numaralandırma saha boyunca medyan konuma göre ve <strong>takımdan bağımsız</strong> yapılır.
+Böylece takım etiketi değişince numaralar kaymaz — bu, elle düzeltmeyi mümkün kılan şeydir.
+Yelek listesi verilmemişse etiketler <code>P1..Pn</code>; verilmişse aynı sıralamayla
+<code>X</code> ve <code>Y</code>.</p>
+
+<h2 id="k9">9. Takım ayrımı</h2>
+
+<p><span class="rozet r-yok">Otomatik çözülemedi</span></p>
+<p>Üç bağımsız yöntem denendi, üçü de bu görüntüde başarısız (kanıtları Bölüm 2'de). Nihai
+çözüm: kullanıcı kimlik kartlarına bakıp yelekli oyuncuların numaralarını veriyor.</p>
+
+<pre>python birlestir.py k1_izler.csv k2_izler.csv --oyuncu 14 --yelek 3,5,7,9,11,13</pre>
+
+<p>Bir kez yapılır, sonuç kesindir. Kimlik kartlarında seçilmeyen takım da ince gri kutuyla
+ve etiketiyle çizilir, böylece yanlış atanmış birinin numarası okunabilir.</p>
+
+<div class="kutu uyari">
+<h4>Doğrulanmış gözlem</h4>
+<p style="margin-bottom:0">Otomatik atamanın yanlış olduğunun kesin kanıtı: kaleci tespiti
+Y1'i sol kalede, Y7'yi sağ kalede buluyor. İki kaleci aynı takımda olamaz. Bu, takım
+etiketlerinin güvenilmezliğini bağımsız olarak doğruluyor.</p>
+</div>
+
+<h2 id="k10">10. Metrikler</h2>
+
+<h3>Gürültü kontrolü</h3>
+<p>Ham konumdan komşu kare farkıyla hız hesaplamak gürültüyü şişiriyor: hiç hareket etmeyen
+bir oyuncu 60 saniyede 62 metre &quot;koşmuş&quot; çıkıyordu ve maksimum hızlar üst sınıra
+dayanıyordu. İki değişiklikle düzeldi:</p>
+<ul>
+<li>Konum 9 örneklik (~0,9 sn) hareketli ortalamayla yumuşatılır. Futbolda yön değişimi ~1 sn
+    ölçeğinde, altındaki dalgalanma tespit gürültüsüdür.</li>
+<li>Hız türevi komşu kareden değil <strong>±3 örneklik (0,6 sn) tabanla</strong> alınır.</li>
+</ul>
+<p>Sonuç: sentetik testte gürültü mesafesi 62 m → <strong>15 m</strong>; maksimum hızlar 8 m/s
+tavanından 1,8–6,4 m/s gerçekçi bandına indi.</p>
+
+<h3>Üretilen metrikler</h3>
+<table>
+<thead><tr><th>Metrik</th><th>Tanım</th></tr></thead>
+<tbody>
+<tr><td>Rol</td><td>Kaleci veriden bulunur (az koşan + ceza sahasından çıkmayan, her kalede bir).
+    Kalanlar takımın hücum yönüne göre defans / orta saha / forvet</td></tr>
+<tr><td>Koşu mesafesi</td><td>Yumuşatılmış konumdan, hız fiziksel sınırla kırpılarak</td></tr>
+<tr><td>Ortalama / en yüksek hız</td><td>km/s. En yüksek = 98. yüzdelik (aykırı değere karşı)</td></tr>
+<tr><td>Sprint</td><td>Hızın 4,5 m/s eşiğini aşıp en az 0,4 sn sürdüğü olay sayısı</td></tr>
+<tr><td>Yüksek tempo</td><td>3,0 m/s üstünde geçen toplam süre</td></tr>
+<tr><td>Ani hızlanma / yavaşlama</td><td>|dv/dt| &gt; 2 m/s² olan olay sayısı</td></tr>
+<tr><td>Saha kullanımı</td><td>Sol / orta / sağ üçte birde geçen zaman oranı</td></tr>
+<tr><td>Veri kalitesi</td><td>Gözlemin gerçek tespit olan oranı</td></tr>
+</tbody>
+</table>
+<div class="kutu uyari">
+<h4>Adlandırma uyarısı</h4>
+<p style="margin-bottom:0">Bölgelere &quot;savunma / hücum&quot; demek yanıltıcıydı ve
+düzeltildi. Hangi takımın hangi yöne hücum ettiği kesin bilinmediği sürece bölgeler
+<strong>sol / orta / sağ</strong> olarak adlandırılmalı. Y1 &quot;%100 savunma&quot;,
+Y7 &quot;%100 hücum&quot; görünüyordu — ikisi de kaleci.</p>
+</div>
+<h2 id="k11">11. Ölçülmüş sonuçlar</h2>
+
+<p class="dip">Ölçümler 1080–1200 sn ve 1500–1620 sn pencerelerinde, gerçek maç kaydıyla yapıldı.</p>
+
+<table>
+<thead><tr><th>Ölçüm</th><th>Değer</th><th>Yorum</th></tr></thead>
+<tbody>
+<tr><td>Kalibrasyon hatası (kısıt noktalarında)</td><td class="sayi">0,31 – 0,36 m</td>
+    <td><span class="rozet r-ok">iyi</span> Tıklanan bölgelerde; uzak yarıda ölçülmedi</td></tr>
+<tr><td>İki kameranın aynı oyuncuyu gösterme farkı</td><td class="sayi">medyan 0,85 m</td>
+    <td><span class="rozet r-ok">iyi</span> Kalibrasyonun <strong>bağımsız</strong> doğrulaması</td></tr>
+<tr><td>2 m içinde eşleşen tespit oranı</td><td class="sayi">%92</td><td><span class="rozet r-ok">iyi</span></td></tr>
+<tr><td>Kare başına tespit (kamera başına)</td><td class="sayi">12,4 – 12,7</td>
+    <td>Sahadaki 14 kişinin çoğu; uzak yarıda kayıp var</td></tr>
+<tr><td>Kaynaştırma sonrası kare başına kişi</td><td class="sayi">13,6 – 14,6</td>
+    <td><span class="rozet r-ok">iyi</span> Gerçek kişi sayısıyla uyumlu</td></tr>
+<tr><td>Zaman hizası (iki kamera)</td><td class="sayi">0 sn kayma</td>
+    <td>Mutlak video zamanı kullanıldığı için hizalama kodu gerekmedi</td></tr>
+<tr><td>Ham <code>iz_id</code> sayısı (120 sn)</td><td class="sayi">146 / 115</td>
+    <td><span class="rozet r-yok">kullanılamaz</span> 14 kişi için</td></tr>
+<tr><td>Serbest takip + dikiş sonrası uzun kimlik</td><td class="sayi">27 – 28</td>
+    <td><span class="rozet r-yok">yetersiz</span></td></tr>
+<tr><td>Sabit kadro sonrası kimlik</td><td class="sayi">13 – 14</td>
+    <td><span class="rozet r-ok">hedefe uygun</span> hepsi %100 zaman kapsaması</td></tr>
+<tr><td>Tahminle doldurulan konum oranı</td><td class="sayi">%6,6</td>
+    <td><span class="rozet r-kismi">kabul edilebilir</span> zayıf yuva elemesinden sonra</td></tr>
+<tr><td>Takım ayrımı doğruluğu</td><td>—</td>
+    <td><span class="rozet r-yok">otomatik çalışmıyor</span> elle işaretleme gerekiyor</td></tr>
+<tr><td>Kaleci tespiti</td><td>2/2</td>
+    <td><span class="rozet r-ok">çalışıyor</span> her kalede bir, veriden</td></tr>
+<tr><td>Gürültü mesafesi (duran oyuncu, sentetik)</td><td class="sayi">62 m → 15 m</td>
+    <td>Yumuşatma ve türev tabanı düzeltmesinden sonra</td></tr>
+<tr><td>İşlem süresi (RTX 4060 Ti 16GB)</td><td class="sayi">~2 dk / 60 sn pencere / kamera</td>
+    <td>10 fps örnekleme, imgsz 1920</td></tr>
+</tbody>
+</table>
+
+<h2 id="k12">12. Açık sorunlar</h2>
+
+<table>
+<thead><tr><th>Sorun</th><th>Durum</th><th>Bilinen</th></tr></thead>
+<tbody>
+<tr>
+  <td><strong>Kimlik takası</strong></td>
+  <td><span class="rozet r-kismi">Kısmen çözülmemiş</span></td>
+  <td>Parçalanma bitti ama iki oyuncu kesiştiğinde yuvaların yer değiştirmesi hâlâ mümkün.
+      Isı haritası ve toplam mesafe bundan yumuşak etkilenir, tamamen bozulmaz.
+      <strong>Doğrulama aracı hazır:</strong> <code>video_cikti.py</code> etiketin başka bir
+      oyuncuya zıpladığını iz çizgisiyle anında gösterir. Sıradaki iş bu videoyu izleyip
+      takasın gerçek sıklığını ölçmek.</td>
+</tr>
+<tr>
+  <td><strong>Takım ayrımı</strong></td>
+  <td><span class="rozet r-yok">Otomatik yok</span></td>
+  <td>Elle işaretleme çalışıyor ve kesin. Otomatikleştirmek için görüntü kalitesinin artması
+      veya oyuncu kırpıntılarıyla eğitilmiş küçük bir sınıflandırıcı gerekir</td>
+</tr>
+<tr>
+  <td><strong>Gerçek saha ölçüsü</strong></td>
+  <td><span class="rozet r-kismi">Varsayım</span></td>
+  <td>50×30 m kabul edildi. Ölçüldüğünde <code>--saha</code> ile verilir, kalibrasyon
+      tekrarlanmaz</td>
+</tr>
+<tr>
+  <td><strong>Uzak yarı doğruluğu</strong></td>
+  <td><span class="rozet r-kismi">Ölçülmedi</span></td>
+  <td>Kalibrasyon hatası yalnızca tıklanan bölgelerde bilinuyor. Her kameranın kendi yarısından
+      sorumlu olması planlandı ama kodda böyle bir ağırlıklandırma <em>yok</em> — füzyon iki
+      kamerayı eşit ağırlıkla ortalıyor. İyileştirme adayı</td>
+</tr>
+<tr>
+  <td><strong>Oyuncu değişimi</strong></td>
+  <td><span class="rozet r-yok">Ele alınmadı</span></td>
+  <td>Sabit kadro varsayımı, oyuncu girip çıktığında bozulur. Şu an kadro elle giriliyor</td>
+</tr>
+<tr>
+  <td><strong>Top takibi</strong></td>
+  <td><span class="rozet r-notr">Kapsam dışı</span></td>
+  <td>Pas ağı, topla oynama süresi, gol/asist gibi olay istatistikleri yok</td>
+</tr>
+<tr>
+  <td><strong>Video erişim penceresi</strong></td>
+  <td><span class="rozet r-kismi">Süreli</span></td>
+  <td>sosyalhalisaha.com kayıtları kalıcı değil; maçtan sonra birkaç gün içinde indirilmeli.
+      IDM ile tam maç indirilebiliyor</td>
+</tr>
+</tbody>
+</table>
+
+<h2 id="k13">13. Yeniden yazarken tuzaklar</h2>
+
+<p>Bu proje boyunca zaman kaybettiren, hepsi <strong>ölçülerek</strong> ortaya çıkmış hatalar.
+Sıfırdan yazarken doğrudan doğru kurulmalı.</p>
+
+<div class="kutu hata">
+<h4>1 · CSV başlık–satır uzunluğu</h4>
+<p style="margin-bottom:0">Satıra sütun eklenip başlığa eklenmedi. <code>DictReader</code> hata
+vermedi, sütunları kaydırdı ve renk yerine kutu genişliği okundu. <strong>Başlığı tek bir
+sabitte tut ve teste uzunluk karşılaştırması koy.</strong></p>
+</div>
+
+<div class="kutu hata">
+<h4>2 · Aynalanmış kalibrasyon düşük hata verir</h4>
+<p style="margin-bottom:0">Kale veya kenar etiketleri ters seçilirse uyum hatası küçük çıkar,
+çünkü aynalama geçerli bir projektif dönüşümdür. <strong>Kameraların ima ettiği konumları
+karşılaştırarak otomatik denetle.</strong></p>
+</div>
+
+<div class="kutu hata">
+<h4>3 · <code>cap.set(POS_MSEC)</code> güvenilmez</h4>
+<p style="margin-bottom:0">Anahtar kareye yuvarlar ve bazı kodeklerde <code>POS_MSEC</code>
+istenen değeri geri verir, yani sapma ölçülemez. İki kamera farklı ana düşer ve kutular yanlış
+kareye çizilir. <strong>Hedefin birkaç saniye öncesine atlayıp kareleri tek tek okuyarak
+yürü.</strong></p>
+</div>
+
+<div class="kutu hata">
+<h4>4 · Elindeki bilgiyi yeniden tahmin etme</h4>
+<p style="margin-bottom:0">Hangi tespitin hangi oyuncuya ait olduğu birleştirme adımında zaten
+biliniyordu. Kimlik kartında bunu atıp yeniden tespit + en yakın eşleştirme yapmak, yakın duran
+oyuncularda yanlış etiket üretti. <strong>Piksel koordinatlarını uçtan uca taşı.</strong></p>
+</div>
+
+<div class="kutu hata">
+<h4>5 · Optimize edilen ölçüt ile önemsenen şey aynı olmalı</h4>
+<p style="margin-bottom:0">&quot;Çizgiler ne kadar düz&quot; ölçütü optimize edilince, optimize
+edici çizgileri düzleştiren ama geometriyi bozan katsayılar buldu. Daha da kötüsü: mutlak piksel
+sapması kullanılınca <code>f→0</code> ile bütün noktalar tek noktaya çöküyor ve maliyet sahte
+biçimde sıfırlanıyordu. <strong>Doğrudan metre hatasını küçült; ölçek değişimiyle oynanamayan
+bir ölçüt seç.</strong></p>
+</div>
+
+<div class="kutu hata">
+<h4>6 · Eşleştirme kapısına renk katma</h4>
+<p style="margin-bottom:0">Renk maliyeti kapı eşiğine dahil edilince, aynı formalı oyuncularda
+renk farkı sıfır olduğu için kapı fiilen 4 metreye genişledi ve kimlikler 4 m ötedeki yanlış
+oyuncuyu kaptı. <strong>Kapı yalnızca mesafeye baksın; renk kapı içinde ayırt edici olsun.</strong></p>
+</div>
+
+<div class="kutu hata">
+<h4>7 · Renk ölçümünde doygunluk süzgeci</h4>
+<p style="margin-bottom:0">En doygun pikselleri seçmek beyaz formayı arka plandaki renkli duvara
+benzetir. <strong>Çim ve karanlık pikselleri ele, kalanın medyanını al, doygunluğu olduğu gibi
+bırak.</strong></p>
+</div>
+
+<div class="kutu hata">
+<h4>8 · Hız türevini komşu kareden alma</h4>
+<p style="margin-bottom:0">0,3 m'lik konum gürültüsü 10 fps'te 3 m/s sahte hız üretir.
+<strong>±3 örneklik tabanla türev al, önce yumuşat.</strong></p>
+</div>
+
+<div class="kutu hata">
+<h4>9 · Görüntüyü warp etme</h4>
+<p style="margin-bottom:0">Balık gözü kareyi dikdörtgene açmak kenarları yok eder ve tespit
+kalitesini düşürür. <strong>Sadece ilgilenilen noktaları dönüştür.</strong></p>
+</div>
+
+<div class="kutu hata">
+<h4>10 · Numaralandırmayı takıma bağlama</h4>
+<p style="margin-bottom:0">İsimler takım içinde verilince, takım etiketi değişince numaralar
+kaydı ve elle düzeltme imkânsız hâle geldi. <strong>Numaralandırma takımdan bağımsız olmalı.</strong></p>
+</div>
+
+<div class="kutu vurgu">
+<h4>11 · Süreç dersi</h4>
+<p style="margin-bottom:0">Kimlik sorunu ortaya çıktığında art arda yama denendi ve her yama
+kullanıcının makinesinde çalıştırılıp sonuç tek karelerden anlaşılmaya çalışıldı. <strong>Teşhis
+aracı (işaretli video) sorunun ilk göründüğü anda yazılmalıydı.</strong> Bir değişiklik
+önerilmeden önce &quot;bunun işe yaradığını ne kanıtlayacak&quot; sorusu cevaplanmalı.</p>
+</div>
+<h2 id="k14">14. Parametreler</h2>
+
+<table>
+<thead><tr><th>Dosya</th><th>Sabit</th><th>Değer</th><th>Anlamı</th></tr></thead>
+<tbody>
+<tr><td rowspan="2"><code>kalibrasyon.py</code></td><td><code>UZUNLUK, GENISLIK</code></td>
+    <td class="sayi">50,0 / 30,0</td><td>Saha ölçüsü varsayımı (metre)</td></tr>
+<tr><td>λ tarama aralığı</td><td class="sayi">−0,6 … 0,6</td><td>241 adımlı kaba tarama, sonra ince ayar</td></tr>
+
+<tr><td rowspan="5"><code>takip.py</code></td><td><code>FPS_HEDEF</code></td><td class="sayi">10,0</td>
+    <td>Örnekleme hızı</td></tr>
+<tr><td><code>MODEL</code></td><td>yolo11m.pt</td><td>—</td></tr>
+<tr><td><code>GUVEN</code></td><td class="sayi">0,25</td><td>Tespit güven eşiği</td></tr>
+<tr><td><code>IMGSZ</code></td><td class="sayi">1920</td><td>Uzak oyuncular için düşürme</td></tr>
+<tr><td><code>KENAR_PAYI</code></td><td class="sayi">3,0 m</td><td>Saha dışı eleme payı</td></tr>
+
+<tr><td rowspan="4"><code>birlestir.py</code></td><td><code>ESLESME_M</code></td><td class="sayi">2,0 m</td>
+    <td>İki kameranın aynı kişiyi gösterme eşiği (ölçülen medyan 0,85 m)</td></tr>
+<tr><td><code>kapi</code> (yurut_sabit)</td><td class="sayi">3,5 m</td>
+    <td>Bir yuvanın bir karede atlayabileceği azami mesafe</td></tr>
+<tr><td><code>RENK_AGIRLIK</code></td><td class="sayi">1,0</td>
+    <td>Renk farkının maliyete katkısı (kapıya dahil değil)</td></tr>
+<tr><td>zayıf yuva eşiği</td><td class="sayi">%40</td>
+    <td>Gerçek gözlem oranı bunun altındaki yuva elenir</td></tr>
+
+<tr><td rowspan="5"><code>metrik.py</code></td><td><code>YUMUSAT</code></td><td class="sayi">9 örnek</td>
+    <td>~0,9 sn hareketli ortalama</td></tr>
+<tr><td><code>TABAN</code></td><td class="sayi">±3 örnek</td><td>0,6 sn türev tabanı</td></tr>
+<tr><td><code>AZAMI_HIZ</code></td><td class="sayi">8,0 m/s</td><td>Üstü tespit hatası sayılır</td></tr>
+<tr><td><code>SPRINT_HIZ</code> / <code>SPRINT_SN</code></td><td class="sayi">4,5 m/s / 0,4 sn</td>
+    <td>Halısaha ölçeğinde sprint tanımı</td></tr>
+<tr><td><code>SIDDET_HIZ</code> / <code>IVME_ESIK</code></td><td class="sayi">3,0 m/s / 2,0 m/s²</td>
+    <td>Yüksek tempo ve ani ivme eşikleri</td></tr>
+
+<tr><td rowspan="2"><code>harita.py</code></td><td><code>HUCRE</code></td><td class="sayi">0,5 m</td>
+    <td>Isı haritası ızgara çözünürlüğü</td></tr>
+<tr><td><code>YUMUSATMA</code></td><td class="sayi">2,5 hücre</td><td>Gauss yumuşatma</td></tr>
+</tbody>
+</table>
+
+<h2 id="k15">15. Ortam ve kurulum</h2>
+
+<h4>Doğrulanmış ortam</h4>
+<table>
+<tbody>
+<tr><td style="width:210px">İşletim sistemi</td><td>Windows</td></tr>
+<tr><td>Python</td><td>3.14</td></tr>
+<tr><td>GPU</td><td>NVIDIA RTX 4060 Ti 16 GB &nbsp;<span class="rozet r-ok">CUDA çalışıyor</span></td></tr>
+<tr><td>PyTorch</td><td>cu128 indeksinden kurulmalı</td></tr>
+<tr><td>Video kaynağı</td><td>sosyalhalisaha.com, IDM ile tam maç indiriliyor</td></tr>
+</tbody>
+</table>
+
+<pre>pip install opencv-python matplotlib numpy scipy ultralytics
+python -m pip install --force-reinstall torch torchvision --index-url https://download.pytorch.org/whl/cu128
+python -c "import torch, torchvision; print(torch.cuda.is_available())"   # True olmalı</pre>
+
+<div class="kutu uyari">
+<h4>Kurulumda yaşanan iki sorun</h4>
+<ul style="margin-bottom:0">
+<li><strong>cu121 indeksinde Python 3.14 paketi yok.</strong> <code>No matching distribution
+found for torch</code> hatası verir. cu128 indeksi çalışıyor.</li>
+<li><strong>torch ve torchvision ayrı sürümlerden kurulursa</strong>
+<code>RuntimeError: operator torchvision::nms does not exist</code> gelir. İkisini
+<em>aynı komutta</em> kur.</li>
+</ul>
+</div>
+
+<h3>Uçtan uca akış</h3>
+<pre># 1) Kamera başına bir kez, kalıcı
+python kalibrasyon.py kamera1.mp4
+python kalibrasyon.py kamera2.mp4
+python kontrol.py kamera1_kalibrasyon.json kamera2_kalibrasyon.json   # aynalama denetimi
+
+# 2) Her analiz penceresi için
+python takip.py kamera1.mp4 kamera1_kalibrasyon.json --cikti k1_izler.csv --basla 1200 --sure 120
+python takip.py kamera2.mp4 kamera2_kalibrasyon.json --cikti k2_izler.csv --basla 1200 --sure 120
+python birlestir.py k1_izler.csv k2_izler.csv --oyuncu 14
+
+# 3) Kartlara / videoya bakıp yelekli numaralarını öğren, sonra
+python birlestir.py k1_izler.csv k2_izler.csv --oyuncu 14 --yelek 3,5,7,9,11,13
+
+# 4) Çıktılar
+python harita.py birlesik.csv
+python metrik.py birlesik.csv &amp;&amp; python tablo.py oyuncu_metrik.csv
+python kimlik_kart.py kamera1.mp4 kamera2.mp4
+python video_cikti.py kamera1.mp4 1</pre>
+<p class="dip">Arayüz (<code>python arayuz.py</code>) bu adımların tamamını sırayla çalıştırır ve
+her koşuyu <code>analiz_dk&lt;X&gt;_&lt;Y&gt;s</code> klasörüne yazar.</p>
+
+<h3>Sıradaki iş</h3>
+<ol>
+<li><strong>İşaretli videoyu izle.</strong> Kimlik takasının gerçek sıklığını ölç. Bu, projenin
+kalan tek büyük belirsizliği. Etiketler tek kişiye yapışık kalıyorsa kişi bazlı metrikler
+kullanılabilir demektir.</li>
+<li><strong>Yelekli numaralarını gir</strong>, takım etiketlerini kesinleştir.</li>
+<li>Sonuç yeterliyse tam maç (59 dk) koşusu.</li>
+<li>İsteğe bağlı: gerçek saha ölçüsü, her kameranın kendi yarısına ağırlık verilmesi,
+oyuncu değişimi desteği.</li>
+</ol>
+
+<hr>
+<p class="dip">Bu rapor sıfırdan yeniden yazım için hazırlandı. Bölüm 2 ve 13 en değerli
+kısımlar: hangi yolların ölçülerek elendiğini ve hangi hataların zaman kaybettirdiğini
+içeriyorlar.</p>
+
+</div>
+</body>
+</html>
