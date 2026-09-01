@@ -7,13 +7,28 @@ bilgisayarli goru hatti. Tarayicidan calisan yerel bir arayuzu var.
 ## Kurulum (Windows)
 
 ```powershell
-cd C:\Users\MFT\Desktop\sosyal-halisaha-image-processing
+cd C:\Users\MFT\Desktop
+git clone https://github.com/mfatihtuz/sosyal-halisaha-image-processing
+cd sosyal-halisaha-image-processing
+git checkout claude/futsal-match-analysis-pplzgc
 powershell -ExecutionPolicy Bypass -File halisahaAnaliz\kurulum\kurulumBetigi.ps1
+```
+
+Klasor zaten varsa ve git deposu degilse, silmeden icine kurmak icin:
+
+```powershell
+cd C:\Users\MFT\Desktop\sosyal-halisaha-image-processing
+git init
+git remote add origin https://github.com/mfatihtuz/sosyal-halisaha-image-processing
+git fetch origin claude/futsal-match-analysis-pplzgc
+git checkout -b claude/futsal-match-analysis-pplzgc origin/claude/futsal-match-analysis-pplzgc
 ```
 
 Betik ne yapar:
 
-1. Python 3.10-3.13 arar (3.14'e DOKUNMAZ; cu128 indeksinde 3.14 tekerlegi yok)
+1. Python 3.10-3.13 arar. **Yoksa Python 3.12'yi kendisi kurar** (once winget,
+   olmazsa python.org'dan sessiz kurulum). 3.14'e DOKUNMAZ; cu128 indeksinde
+   3.14 tekerlegi yok. Yonetici yetkisi gerektirmez.
 2. `halisahaAnaliz\.venv` altinda ayri bir sanal ortam acar
 3. torch + torchvision'i CUDA cu128 indeksinden **ayni komutta** kurar
    (ayri kurulunca `operator torchvision::nms does not exist` ilk tespitte patlar)
