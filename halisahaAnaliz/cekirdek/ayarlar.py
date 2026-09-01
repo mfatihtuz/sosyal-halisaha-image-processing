@@ -158,23 +158,47 @@ class KimlikAyarlari:
     vAzami: float = 8.0
     """Bir oyuncunun fiziksel azami hizi (m/s). Zamana uyarli kapinin egimi."""
 
-    kapiTabani: float = 0.5
-    """Kapinin sabit terimi (metre): konum olcum gurultusu."""
+    kapiTabani: float = 1.0
+    """Kapinin sabit terimi (metre): konum olcum gurultusu ve sistematik sapma payi.
+
+    OLCULEREK secildi. Sentetik tezgahta 3 sahne uzerinde taranan degerler:
+
+        8*dt + 0,5 m  ->  IDF1 0,960   takas 2,7
+        8*dt + 1,0 m  ->  IDF1 0,999   takas 0,0     <- secilen
+       12*dt + 0,5 m  ->  IDF1 0,973   takas 1,3
+
+    Taban terimin buyuk olmasi gerekiyor cunku konum hatasinin buyuk kismi
+    RASTGELE DEGIL SISTEMATIK: kalibrasyon artigi bir oyuncunun konumunu
+    zamanla sabit bicimde kaydirir ve bu kayma dt ile buyumez.
+    """
 
     def kapi(self, dt: float) -> float:
         """Bir kimligin `dt` saniyede atlayabilecegi azami mesafe.
 
-        ONCEKI SURUMUN ANA HATASI SABIT 3,5 METRELIK KAPIYDI.
+        dt=0,1 sn'de 1,80 m, 2 sn boslukta 17,00 m. Kisa araliktaki komsu kapmasi
+        zorlasirken uzun boslukta yeniden baglanma mumkun kalir.
 
-        Olculen gercek: oyuncu 0,1 sn'de medyan 0,15 m / p90 0,44 m hareket
-        ediyor, en yakin komsu p10 2,23 m otede. Sabit 3,5 m kapi gerekenin 8 kati.
-        Bir oyuncu bir karede tespit edilemedigin de (kare basina 12,66 tespit,
-        14 kisi -> ~1,3 eksik) o yuva 3,5 m otedeki komsunun tespitini kapiyor,
-        komsunun yuvasi bir baskasini kapiyor; cig.
+        OLCUM NOTU -- ILK HIPOTEZ YANLIS CIKTI, DUZELTILDI.
 
-        Zamana uyarli kapi bu sorunu kokten cozer: dt=0,1 sn'de 1,3 m, ama 2 sn
-        boslukta 16,5 m. Kisa araliktaki komsu kapmasi imkansiz hale gelirken uzun
-        boslukta yeniden baglanma mumkun kalir.
+        Baslangicta "onceki surumun sabit 3,5 m kapisi hatanin kaynagi" diye
+        dusunulmustu; oyuncu 0,1 sn'de p90 0,44 m hareket ederken en yakin komsu
+        p10 2,23 m otede oldugu icin 3,5 m gerekenin ~8 kati goruntusu veriyordu.
+        Sentetik tezgahta olculunce bunun YANLIS oldugu goruldu:
+
+            eski mimari, sabit 1,3 m  ->  IDF1 0,727   takas 17,7
+            eski mimari, sabit 1,8 m  ->  IDF1 0,879   takas  8,0
+            eski mimari, sabit 3,5 m  ->  IDF1 0,982   takas  5,7   <- neredeyse en iyi
+            yeni mimari, 8*dt + 1,0   ->  IDF1 0,999   takas  0,0
+
+        Eski mimaride 3,5 m neredeyse en iyi degerdir ve daraltmak felakettir --
+        cunku o mimari kendi savrulmasini telafi etmek icin genis kapiya MUHTAC:
+        gozlem yokken tahmini konum olarak kalicilastirdigi icin yuva kayiyor ve
+        ancak genis bir kapiyla geri yakalayabiliyor.
+
+        Kazanc kapinin darligindan degil, ONGORUNUN KALITESINDEN geliyor: Kalman
+        suzgeci + gozlem yokken durumu bozmamak + RTS duzlestirici. Ayni 1,8 m'lik
+        kapi eski mimariye verildiginde IDF1 0,879'da kaliyor, yeni mimaride
+        0,999'a cikiyor.
         """
         return self.vAzami * max(dt, 0.0) + self.kapiTabani
 
@@ -214,7 +238,7 @@ class KimlikAyarlari:
     uretmek yaniltici olur.
     """
 
-    supheYakinlikM: float = 1.5
+    supheYakinlikM: float = 2.5
     """Iki zincir bu mesafeden yakinsa o an "riskli" isaretlenir ve duzeltme
     panelinde ust siralarda gosterilir."""
 
@@ -377,14 +401,17 @@ def selftest() -> None:
 
     # 1) Zamana uyarli kapi: kisa aralikta dar, uzun boslukta genis
     k = a.kimlik
-    assert abs(k.kapi(0.1) - 1.3) < 1e-9, k.kapi(0.1)
+    assert abs(k.kapi(0.1) - 1.8) < 1e-9, k.kapi(0.1)
     assert k.kapi(0.1) < 2.23, "kapi en yakin komsu mesafesinin p10'undan (2,23 m) kucuk olmali"
-    assert k.kapi(0.1) > 1.13, "kapi olculen p99 kare basina hareketten (1,13 m) buyuk olmali"
+    assert k.kapi(0.1) > 1.13, "kapi olculen p99 kare basina adimdan (1,13 m) buyuk olmali"
     assert k.kapi(2.0) > 15.0, "2 sn boslukta yeniden baglanma mumkun kalmali"
     assert k.kapi(0.0) == k.kapiTabani
+    assert k.kapi(0.5) > k.kapi(0.1), "kapi bosluk suresiyle genislemeli"
 
-    # Eski surumun sabit kapisiyla kiyas: 0,1 sn'de kac kat dar
-    assert 3.5 / k.kapi(0.1) > 2.5, "yeni kapi eski 3,5 m'den belirgin sekilde dar olmali"
+    # Kapi eski surumun sabit degerinden dar ama COK dar degil. Sentetik tezgahta
+    # olculdu: cok dar kapi (1,3 m) yuvalari ac birakiyor ve IDF1'i 0,727'ye
+    # dusuruyor. Dogru bant 1,5-2,5 m arasi.
+    assert 1.5 < k.kapi(0.1) < 2.5, k.kapi(0.1)
 
     # 2) JSON turu: yaz -> oku -> ayni
     with tempfile.TemporaryDirectory() as klasor:

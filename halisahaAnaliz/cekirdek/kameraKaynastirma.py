@@ -165,6 +165,151 @@ def kaynastir(kamera1: list[dict], kamera2: list[dict],
     return cikti
 
 
+@dataclass
+class SapmaAlani:
+    """Bir kameranin SISTEMATIK konum sapmasinin saha uzerindeki haritasi.
+
+    NEDEN GEREKLI -- olcerek bulundu:
+
+    Fuzyon kaynagi degistiginde (iki kamera -> tek kamera -> obur kamera)
+    fuzyonlanmis konum SICRIYOR, cunku her kameranin sapmasi farkli. Sentetik
+    tezgahta olculen (sahne #6):
+
+        kaynak ayni kaldi  ->  kare basina adim medyan 0,20 m
+        kaynak degisti     ->  kare basina adim medyan 0,55 m, p90 1,01 m
+
+    Sicrama 1,80 m'lik kapinin yarisina ulasiyor ve yuva komsuyu kapiyor. Ayni
+    sahnede IDF1 0,591'de kaliyor. Sapmasi kucuk olan sahne #0'da ayni gecis
+    yalnizca 0,27 m ve IDF1 1,000.
+
+    Gercek veride de aynen olacak: iki kameranin uyusmazligi medyan 0,85 m.
+
+    NASIL OLCULUR -- dogru cevap gerekmez. Ayni kisiyi goren iki kameranin
+    konum farki, o noktadaki GORELI sapmadir (sapma1 - sapma2). Saha izgarasinda
+    biriktirilip yumusatilinca goreli sapma alani cikar. Mutlak sapmalar
+    ayristirilamaz (yer gercegi olmadan mumkun degil), ama gerekmez de: farkin
+    yarisi birinden cikarilip yarisi obarune eklenince GORELI sapma sifirlanir,
+    kaynak degisimindeki sicrama ortadan kalkar. Geriye kalan ortak mod, iki
+    kamerayi birlikte kaydiran yumusak bir bozulmadir; kimlige zarar vermez.
+    """
+
+    izgaraX: np.ndarray
+    izgaraY: np.ndarray
+    duzeltme: np.ndarray                 # (nY, nX, 2) -- bu kameraya EKLENECEK duzeltme
+    ornekSayisi: np.ndarray              # (nY, nX) -- her hucredeki gozlem sayisi
+
+    def uygula(self, konumlar: np.ndarray) -> np.ndarray:
+        """Verilen saha noktalarina duzeltmeyi uygular."""
+        p = np.atleast_2d(np.asarray(konumlar, float))
+        i = np.clip(np.searchsorted(self.izgaraY, p[:, 1]) - 1, 0, len(self.izgaraY) - 2)
+        j = np.clip(np.searchsorted(self.izgaraX, p[:, 0]) - 1, 0, len(self.izgaraX) - 2)
+        return p + self.duzeltme[i, j]
+
+    @property
+    def buyukluk(self) -> float:
+        """Duzeltmenin ortalama buyuklugu (metre) -- ne kadar sapma giderildi."""
+        dolu = self.ornekSayisi > 0
+        return float(np.linalg.norm(self.duzeltme[dolu], axis=1).mean()) if dolu.any() else 0.0
+
+
+def sapmaAlaniFitEt(kamera1Kareler: list[list[dict]], kamera2Kareler: list[list[dict]],
+                    ayarlar: Ayarlar | None = None,
+                    hucre: float = 5.0, enAzOrnek: int = 8) -> dict[int, SapmaAlani]:
+    """Iki kameranin GORELI sistematik sapmasini olcup duzeltme alanlari uretir.
+
+    Donen duzeltmeler, ilgili kameranin konumlarina EKLENIR. Toplamlari sifirdir:
+    farkin yarisi birinden cikarilir, yarisi obarune eklenir.
+    """
+    a = ayarlar or Ayarlar()
+    izgaraX = np.arange(0.0, a.saha.uzunluk + hucre, hucre)
+    izgaraY = np.arange(0.0, a.saha.genislik + hucre, hucre)
+    nY, nX = len(izgaraY) - 1, len(izgaraX) - 1
+
+    toplam = np.zeros((nY, nX, 2))
+    sayi = np.zeros((nY, nX), int)
+
+    for kare1, kare2 in zip(kamera1Kareler, kamera2Kareler):
+        if not kare1 or not kare2:
+            continue
+        A = np.array([[t["x_m"], t["y_m"]] for t in kare1], float)
+        B = np.array([[t["x_m"], t["y_m"]] for t in kare2], float)
+        d = np.linalg.norm(A[:, None, :] - B[None, :, :], axis=2)
+        bedel = np.where(d <= a.kimlik.esitlemeM, d, 1e6)
+        for i, j in zip(*linear_sum_assignment(bedel)):
+            if d[i, j] > a.kimlik.esitlemeM:
+                continue
+            orta = (A[i] + B[j]) / 2.0
+            hy = int(np.clip(orta[1] // hucre, 0, nY - 1))
+            hx = int(np.clip(orta[0] // hucre, 0, nX - 1))
+            toplam[hy, hx] += A[i] - B[j]          # goreli sapma: sapma1 - sapma2
+            sayi[hy, hx] += 1
+
+    goreli = np.zeros((nY, nX, 2))
+    dolu = sayi >= enAzOrnek
+    goreli[dolu] = toplam[dolu] / sayi[dolu][:, None]
+
+    # Bos hucreleri komsulardan doldur ve alani yumusat: kalibrasyon artigi
+    # konumun yumusak bir fonksiyonudur, hucreden hucreye ziplamaz.
+    goreli = _bosluklariDoldurVeYumusat(goreli, dolu)
+
+    return {
+        1: SapmaAlani(izgaraX, izgaraY, -goreli / 2.0, sayi),
+        2: SapmaAlani(izgaraX, izgaraY, +goreli / 2.0, sayi),
+    }
+
+
+def _bosluklariDoldurVeYumusat(alan: np.ndarray, dolu: np.ndarray,
+                               tur: int = 3) -> np.ndarray:
+    """Bos hucreleri dolu komsulardan doldurur, sonra hafifce yumusatir."""
+    cikti = alan.copy()
+    gecerli = dolu.copy()
+    cekirdek = np.array([[0.0, 1.0, 0.0], [1.0, 0.0, 1.0], [0.0, 1.0, 0.0]])
+
+    for _ in range(tur):
+        if gecerli.all():
+            break
+        komsuToplam = np.zeros_like(cikti)
+        komsuSayi = np.zeros(gecerli.shape)
+        for dy in (-1, 0, 1):
+            for dx in (-1, 0, 1):
+                if cekirdek[dy + 1, dx + 1] == 0:
+                    continue
+                kaydirilmis = np.roll(np.roll(cikti, dy, axis=0), dx, axis=1)
+                kaydirilmisGecerli = np.roll(np.roll(gecerli, dy, axis=0), dx, axis=1)
+                komsuToplam += kaydirilmis * kaydirilmisGecerli[:, :, None]
+                komsuSayi += kaydirilmisGecerli
+        doldurulacak = (~gecerli) & (komsuSayi > 0)
+        cikti[doldurulacak] = komsuToplam[doldurulacak] / komsuSayi[doldurulacak][:, None]
+        gecerli |= doldurulacak
+
+    # 3x3 kutu yumusatma
+    yumusak = np.zeros_like(cikti)
+    agirlik = np.zeros(cikti.shape[:2])
+    for dy in (-1, 0, 1):
+        for dx in (-1, 0, 1):
+            yumusak += np.roll(np.roll(cikti, dy, axis=0), dx, axis=1)
+            agirlik += 1
+    return yumusak / agirlik[:, :, None]
+
+
+def sapmayiUygula(kareler: list[list[dict]], alan: SapmaAlani) -> list[list[dict]]:
+    """Bir kameranin tum tespitlerine duzeltme alanini uygular."""
+    cikti = []
+    for kare in kareler:
+        if not kare:
+            cikti.append(kare)
+            continue
+        P = np.array([[t["x_m"], t["y_m"]] for t in kare], float)
+        D = alan.uygula(P)
+        yeni = []
+        for t, p in zip(kare, D):
+            k = dict(t)
+            k["x_m"], k["y_m"] = float(p[0]), float(p[1])
+            yeni.append(k)
+        cikti.append(yeni)
+    return cikti
+
+
 def hataModeliFitEt(kamera1Kareler: list[list[dict]], kamera2Kareler: list[list[dict]],
                     ayarlar: Ayarlar | None = None) -> dict[int, HataModeli]:
     """Iki kameranin uyusmazligindan hata modelinin katsayilarini fit eder.
@@ -318,17 +463,67 @@ def selftest() -> None:
     for g in tekler:
         assert g.k1 != BOS_KUTU and g.k2 == BOS_KUTU, g
 
-    # 5) Tek kamera durumlarinda cokme olmamali
+    # 5) SAPMA DUZELTMESI: iki kameranin uyusmazligini belirgin sekilde azaltmali
+    def uyusmazlikMedyani(a1, a2):
+        f = []
+        for ka, kb in zip(a1, a2):
+            if not ka or not kb:
+                continue
+            A = np.array([[t["x_m"], t["y_m"]] for t in ka])
+            B = np.array([[t["x_m"], t["y_m"]] for t in kb])
+            d = np.linalg.norm(A[:, None] - B[None], axis=2)
+            for i, j in zip(*linear_sum_assignment(np.where(d <= 2.5, d, 1e6))):
+                if d[i, j] <= 2.5 and ka[i]["_gercek"] >= 0 and ka[i]["_gercek"] == kb[j]["_gercek"]:
+                    f.append(d[i, j])
+        return float(np.median(f))
+
+    oncesi = uyusmazlikMedyani(k1Kareler, k2Kareler)
+    alanlar = sapmaAlaniFitEt(k1Kareler, k2Kareler)
+    d1 = sapmayiUygula(k1Kareler, alanlar[1])
+    d2 = sapmayiUygula(k2Kareler, alanlar[2])
+    sonrasi = uyusmazlikMedyani(d1, d2)
+    assert sonrasi < 0.75 * oncesi, (oncesi, sonrasi)
+
+    # Duzeltmeler toplami sifir olmali: fark ikiye bolunup paylastiriliyor
+    assert np.allclose(alanlar[1].duzeltme, -alanlar[2].duzeltme), "duzeltmeler simetrik olmali"
+
+    # DIKKAT: duzeltme tek bir kamerayi gercege yaklastirmak ZORUNDA DEGIL ve
+    # yaklastirmasi da beklenmez. Kaldirilan sey GORELI sapmadir; fark ikiye
+    # bolunup paylastirildigi icin, dogru olan kamera bir miktar bozulur ve
+    # sapan kamera duzelir. Mutlak dogruluk acisindan islem yaklasik notrdur.
+    #
+    # KAZANC BASKA YERDE: iki kamera artik AYNI SEYI SOYLUYOR, dolayisiyla
+    # fuzyon kaynagi degistiginde (12 -> 1 -> 12 -> 2) konum ARTIK SICRAMIYOR.
+    # Sicrama, yuvanin komsu gozlemi kapmasinin ana sebebiydi.
+    def kaynakGecisSicramasi(a1, a2, hataM):
+        onceki = {}
+        ayni, degisen = [], []
+        for i in range(len(a1)):
+            for g in kaynastir(a1[i], a2[i], hataM):
+                anahtar = (round(g.x / 3.0), round(g.y / 3.0))
+                if anahtar in onceki:
+                    eskiG = onceki[anahtar]
+                    d = float(np.hypot(g.x - eskiG.x, g.y - eskiG.y))
+                    (ayni if g.kaynak == eskiG.kaynak else degisen).append(d)
+                onceki[anahtar] = g
+        return float(np.median(degisen)) / float(np.median(ayni))
+
+    oncekiOran = kaynakGecisSicramasi(k1Kareler, k2Kareler, fit)
+    sonrakiOran = kaynakGecisSicramasi(d1, d2, hataModeliFitEt(d1, d2))
+    assert sonrakiOran < oncekiOran, (oncekiOran, sonrakiOran)
+
+    # 6) Tek kamera durumlarinda cokme olmamali
     assert len(kaynastir(k1Kareler[0], [], fit)) == len(k1Kareler[0])
     assert len(kaynastir([], k2Kareler[0], fit)) == len(k2Kareler[0])
     assert kaynastir([], [], fit) == []
 
     iyilesme = 100 * (1 - agirlikliMedyan / esitMedyan)
-    print("selftest ok  (hata modeli fit: taban %.3f olcek %.3f; agirlikli fuzyon "
-          "%.3f m vs esit agirlik %.3f m -> %%%.1f daha dogru; kare basina %.2f kisi, "
-          "%%%.0f.i cift kamera, 2 m eslesme orani %%%.0f)"
-          % (fit[1].taban, fit[1].olcek, agirlikliMedyan, esitMedyan, iyilesme,
-             kareBasina, 100 * ciftKameraOrani, 100 * eslesmeOrani))
+    print("selftest ok  (agirlikli fuzyon %.3f m vs esit agirlik %.3f m -> %%%.1f daha "
+          "dogru; sapma duzeltmesi uyusmazligi %.2f -> %.2f m indiriyor (%%%.0f); "
+          "kare basina %.2f kisi, %%%.0f.i cift kamera, 2 m eslesme %%%.0f)"
+          % (agirlikliMedyan, esitMedyan, iyilesme, oncesi, sonrasi,
+             100 * (1 - sonrasi / oncesi), kareBasina, 100 * ciftKameraOrani,
+             100 * eslesmeOrani))
 
 
 if __name__ == "__main__":

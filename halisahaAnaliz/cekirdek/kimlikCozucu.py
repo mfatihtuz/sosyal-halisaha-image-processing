@@ -6,16 +6,13 @@ Onceki surumun `yurut_sabit` fonksiyonu dogru fikirden yola cikiyordu -- sabit
 sayida yuva ac, her kare bu yuvalara ata, kimlik dogmasin ve olmesin -- ama uc
 uygulama hatasi fikri bosa cikardi:
 
-  1. SABIT 3,5 METRELIK KAPI. Olculen gerceklik: oyuncu 0,1 sn'de p90 0,44 m
-     hareket ediyor, en yakin komsu p10 2,23 m otede. 3,5 m gerekenin ~8 kati.
-     Bir yuva gozlemsiz kalinca (kare basina ~1,3 kisi kayip) 3,5 m otedeki
-     komsunun tespitini kapiyor, komsunun yuvasi bir baskasini kapiyor; cig.
-     Ilginc olan: dogru deger dosyada ZATEN YAZILIYDI (`KAPI_M = 1.8`, satir 25)
-     ama hicbir yerde kullanilmiyordu.
-
-  2. GOZLEM YOKKEN TAHMIN KONUM OLARAK KALICILASTIRILIYORDU
+  1. GOZLEM YOKKEN TAHMIN KONUM OLARAK KALICILASTIRILIYORDU
      (`k.k, k.h = p, k.h * 0.7`). Kestirim gercek olcum gibi islenince hata
-     birikiyor ve yuva savruluyordu.
+     birikiyor ve yuva savruluyor; savrulan yuvayi geri yakalayabilmek icin de
+     genis bir kapiya muhtac kaliniyordu.
+
+  2. HIZ KESTIRIMI KABA: `0.8*eski + 0.2*yeni` karisimi ve `min(dt, 0.5)` ile
+     sinirlanan dogrusal ongoru. Olcum belirsizligi hic modellenmiyor.
 
   3. ILERI YONLU, GERI DONULMEZ KARARLAR. Oysa bu is CEVRIMDISI: mac bitmis,
      video elimizde, gelecegi gorebiliyoruz. Onceki surum canli yayin isliyormus
@@ -23,14 +20,25 @@ uygulama hatasi fikri bosa cikardi:
 
 Buradaki cozum ucune de dogrudan yanit verir:
 
-  1. ZAMANA UYARLI KAPI: kapi(dt) = vAzami*dt + gurultu. 0,1 sn'de 1,30 m,
-     2 sn boslukta 16,50 m. Kisa arada komsu kapmak imkansiz, uzun boslukta
-     yeniden baglanma mumkun.
-  2. KALMAN SUZGECI: gozlem yokken yalnizca ongoru yurur, durum sahte olcumle
-     kirletilmez ve belirsizlik (kovaryans) buyuyerek kapinin genislemesini
+  1. KALMAN SUZGECI: gozlem yokken yalnizca ongoru yurur, durum sahte olcumle
+     KIRLETILMEZ ve belirsizlik (kovaryans) buyuyerek kapinin genislemesini
      kendisi yonetir.
+  2. OLCUM BELIRSIZLIGI MODELLENIR: her gozlemin kendi sigma'si (fuzyondan
+     gelir) Kalman guncellemesinde R matrisi olarak kullanilir. Uzak kameradan
+     gelen belirsiz bir olcum durumu az, yakin kameradan gelen kesin bir olcum
+     cok degistirir.
   3. ILERI-GERI RTS DUZLESTIRICI: bosluklar, oyuncunun NEREDE YENIDEN
      GORUNDUGU bilgisiyle doldurulur. Ileri yonlu kestirimden cok daha isabetli.
+
+OLCULEN SONUC (sentetik tezgah, 3 sahne, 60 sn, 14 oyuncu):
+
+    eski mimari, sabit 3,5 m kapi  ->  IDF1 0,982   takas 5,7
+    bu modul, 8*dt + 1,0 m kapi    ->  IDF1 0,999   takas 0,0
+
+DIKKAT: kazanc kapinin darligindan DEGIL. Ilk hipotez "3,5 m kapi cok genis"
+seklindeydi ve olculunce yanlis cikti -- eski mimaride 3,5 m neredeyse en iyi
+degerdir, daraltmak IDF1'i 0,727'ye dusurur. Belirleyici olan ongorunun
+kalitesi; ayni 1,8 m kapi eski mimaride 0,879, burada 0,999 veriyor.
 
     python kimlikCozucu.py --selftest
 """
@@ -373,7 +381,8 @@ def selftest() -> None:
     from puanla import sahneyiPuanla
     from sentetikSahne import sahneUret
 
-    from cekirdek.kameraKaynastirma import hataModeliFitEt, kaynastir
+    from cekirdek.kameraKaynastirma import (hataModeliFitEt, kaynastir,
+                                            sapmaAlaniFitEt, sapmayiUygula)
 
     sahne = sahneUret(tohum=0)
 
@@ -386,6 +395,13 @@ def selftest() -> None:
 
     k1 = [kareyeCevir(k) for k in sahne.gozlemler[1]]
     k2 = [kareyeCevir(k) for k in sahne.gozlemler[2]]
+
+    # Sapma duzeltmesi hattin AYRILMAZ parcasi: bu adim olmadan fuzyon kaynagi
+    # her degistiginde konum sicriyor ve yuvalar komsu gozlemi kapiyor.
+    alanlar = sapmaAlaniFitEt(k1, k2)
+    k1 = sapmayiUygula(k1, alanlar[1])
+    k2 = sapmayiUygula(k2, alanlar[2])
+
     hm = hataModeliFitEt(k1, k2)
     kareler = {round(float(t), 3): kaynastir(k1[i], k2[i], hm)
                for i, t in enumerate(sahne.zamanlar)}

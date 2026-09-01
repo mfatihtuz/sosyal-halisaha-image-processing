@@ -22,7 +22,8 @@ from scipy.optimize import linear_sum_assignment
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from cekirdek.ayarlar import Ayarlar  # noqa: E402
-from cekirdek.kameraKaynastirma import hataModeliFitEt, kaynastir  # noqa: E402
+from cekirdek.kameraKaynastirma import (hataModeliFitEt, kaynastir,  # noqa: E402
+                                        sapmaAlaniFitEt, sapmayiUygula)
 from cekirdek.kimlikCozucu import coz  # noqa: E402
 from puanla import BASLIK, sahneyiPuanla  # noqa: E402
 from sentetikSahne import sahneUret  # noqa: E402
@@ -110,7 +111,8 @@ def eskiYontem(kareler, n, kapi=3.5, renkAgirlik=1.0):
 
 # ------------------------------------------------------- ortak yardimcilar
 
-def sahneyiHazirla(tohum: int, ayarlar: Ayarlar | None = None):
+def sahneyiHazirla(tohum: int, ayarlar: Ayarlar | None = None,
+                   sapmaDuzelt: bool = True):
     """Sahneyi uretip kaynastirilmis kareleri dondurur."""
     sahne = sahneUret(tohum=tohum, ayarlar=ayarlar)
 
@@ -123,7 +125,16 @@ def sahneyiHazirla(tohum: int, ayarlar: Ayarlar | None = None):
 
     k1 = [cevir(k) for k in sahne.gozlemler[1]]
     k2 = [cevir(k) for k in sahne.gozlemler[2]]
-    hm = hataModeliFitEt(k1, k2)
+
+    if sapmaDuzelt:
+        # Iki kameranin goreli sistematik sapmasini olcup gider. Bu adim
+        # olmadan fuzyon kaynagi her degistiginde konum sicriyor ve yuvalar
+        # komsu kapiyor -- sahne #6'da IDF1'i 0,591'e dusuren sey buydu.
+        alanlar = sapmaAlaniFitEt(k1, k2, ayarlar)
+        k1 = sapmayiUygula(k1, alanlar[1])
+        k2 = sapmayiUygula(k2, alanlar[2])
+
+    hm = hataModeliFitEt(k1, k2, ayarlar)
     kareler = {round(float(t), 3): kaynastir(k1[i], k2[i], hm, ayarlar)
                for i, t in enumerate(sahne.zamanlar)}
     return sahne, kareler
