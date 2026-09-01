@@ -11,11 +11,35 @@ Sahne gercege benziyorsa, sahnede calisan algoritma gercekte de calisir.
 
 Hedeflenen olcumler (kamera1_izler.csv, 60 sn, 10 fps, 603 kare, 7.631 satir):
 
-    kare basina hareket        medyan 0,15 m   p90 0,44 m
+    kare basina hareket        medyan 0,15 m   p90 0,44 m   p99 1,13 m
     en yakin komsu mesafesi    p10 2,23 m      medyan 5,07 m
     kare basina tespit         12,66 / 14      (~%90 anma)
     guven                      yakin 0,856     uzak 0,705
-    saha kullanimi             x 0-50, y 0-30
+    iki kamera uyusmazligi     medyan 0,85 m   %92'si 2 m icinde
+
+DIKKAT -- BU MODULU KALIBRE EDERKEN YAPILAN VE DUZELTILEN HATA:
+
+Yukaridaki degerlerin HEPSI gercek veride GOZLEM uzerinden olculmustur, yani
+gurultu dahildir. Ilk kalibrasyonda bunlar sentetik sahnenin GURULTUSUZ gercek
+konumlariyla kiyaslandi; gurultu ustune eklenince sentetik gozlem adimi p90
+1,96 m cikti, gercegin 4,5 kati. O sahnede yapilan kapi taramasi tamamen
+yaniltici sonuc verdi. Bu yuzden `sahneIstatistikleri` artik adim ve komsu
+olcumlerini de GOZLEMLERDEN alir. Yeni bir olcum eklerken ayni ayrima dikkat et.
+
+HATA MODELININ IKI BILESENI VE NEDEN AYRI OLMAK ZORUNDA OLDUKLARI:
+
+Gercek veri iki olcumu ayni anda veriyor ve tek bir gurultu terimi ikisini
+birden aciklayamaz:
+
+    ayni kameranin ardisik kare adimi ... p90 0,44 m   (kucuk)
+    iki kameranin ayni anda uyusmazligi . med 0,85 m   (buyuk)
+
+p90 0,44 m'lik bir adim ~0,15 m'lik kare-basi gurultuye karsilik gelir; o
+gurultuyle uyusmazlik 0,21 m civari cikardi. Aradaki fark SISTEMATIK: konuma
+bagli, zamanla sabit kalibrasyon artigi. Algoritma acisindan ayrimi belirleyici:
+
+    eslestirme/kapi  -> RASTGELE bilesene bakar, o KUCUK  -> dar kapi calisir
+    fuzyon           -> SISTEMATIK bilesene bakar, ortalamayla yok OLMAZ
 
     python sentetikSahne.py --selftest
     python sentetikSahne.py --istatistik     # uretilen sahnenin olcumleri
@@ -35,6 +59,20 @@ from cekirdek.ayarlar import Ayarlar  # noqa: E402
 
 # Kameralar sahanin iki ucunda, kale arkasinda ve yukarida.
 # Gercek yerlesim: kamera 1 kale A'nin, kamera 2 kale B'nin arkasinda.
+# Gozlem hata modelinin iki bileseni. Degerler gercek veriden olculen iki
+# capaya birlikte fit edildi: kare-basi adim dagilimi (medyan 0,15 / p90 0,44 m)
+# ve iki kamera uyusmazligi (medyan 0,85 m, %92'si 2 m icinde).
+SAPMA_TABAN = 0.042      # sistematik kalibrasyon artigi, yakin bolgede (metre)
+SAPMA_OLCEK = 0.120      # sistematiginin mesafeyle buyumesi
+SAPMA_US = 2.0          # sistematik sapmanin mesafeyle buyume ussu
+SAPMA_KUYRUK = 2.4      # >1 ise bazi bolgeler digerlerinden cok daha kotu (agir kuyruk)
+RASTGELE_TABAN = 0.020   # kareden kareye degisen tespit gurultusu (metre)
+RASTGELE_OLCEK = 0.015  # rastgele gurultunun mesafeyle buyumesi
+KABA_HATA_ORANI = 0.030  # gozlemlerin bu kesri kaba hatali (ortulme, yanlis ayak noktasi)
+KABA_HATA_OLCEK = 9.0   # kaba hatanin normal gurultuye orani
+TABAN_HIZ = 0.10        # topa uzak oyuncunun yuruyus hizi (m/s)
+ILGI_HIZ = 4.2          # topa en yakin oyuncunun ek hizi (m/s)
+
 KAMERA_KONUMLARI = {
     1: np.array([-6.0, 15.0, 7.0]),
     2: np.array([56.0, 15.0, 7.0]),
@@ -134,7 +172,7 @@ def sahneUret(
         # yurur. Gercek veride adim medyani 0,15 m ama p90 0,44 m -- yani cogunluk
         # yavas, azinlik hizli. Tekduze bir model bu agir kuyrugu uretmez.
         topaMesafe = np.linalg.norm(konum - top, axis=1)
-        ilgi = np.exp(-(topaMesafe / 12.0) ** 2)
+        ilgi = np.exp(-(topaMesafe / 15.0) ** 2)
         ilgi = np.where(kaleciler, ilgi * 0.10, ilgi)
 
         hedef = ilgi[:, None] * top + (1.0 - ilgi[:, None]) * kayanDizilis
@@ -142,7 +180,7 @@ def sahneUret(
         hedefeMesafe = np.linalg.norm(hedef - konum, axis=1)
 
         # Istenen hiz: yuruyusten sprinte. Hedefe cok yaklasinca yavasla.
-        istenenHiz = (0.35 + 6.4 * ilgi) * np.clip(hedefeMesafe / 2.0, 0.0, 1.0)
+        istenenHiz = (TABAN_HIZ + ILGI_HIZ * ilgi) * np.clip(hedefeMesafe / 2.0, 0.0, 1.0)
         istenenHiz = np.where(kaleciler, istenenHiz * 0.45, istenenHiz)
         istenenHizVek = hedefeYon * istenenHiz[:, None]
 
@@ -190,14 +228,60 @@ def sahneUret(
                  oyuncuTakimlari=takimlar, oyuncuRenkleri=renkler, gozlemler=gozlemler)
 
 
+def _sapmaAlani(rng, uz: float, gen: float):
+    """Bir kameranin SISTEMATIK konum sapmasi: konuma bagli, zamanla sabit.
+
+    Neden ayri bir bilesen: gercek veri iki olcumu ayni anda veriyor ve tek bir
+    rastgele gurultu terimi ikisini birden aciklayamaz.
+
+        ayni kameranin ardisik kare adimi ... p90 0,44 m   (kucuk)
+        iki kameranin ayni anda uyusmazligi . med 0,85 m   (buyuk)
+
+    p90 0,44 m'lik bir adim ~0,15 m'lik kare-basi gurultuye karsilik gelir; o
+    gurultuyle iki kameranin uyusmazligi 0,21 m civari cikardi, 0,85 m degil.
+    Aradaki fark KALIBRASYON ARTIGIDIR: konuma bagli, zamanla sabit bir kayma.
+    Kamera 1, sahanin belirli bir noktasindaki oyuncuyu her seferinde ayni yone
+    kaydirir; bu kare-basi adimi hic etkilemez ama uyusmazliga dogrudan girer.
+
+    Algoritma acisindan ayrimi onemli:
+      * eslestirme/kapi RASTGELE bilesene bakar ve o kucuk -> dar kapi calisir
+      * fuzyon SISTEMATIK bilesene bakar ve o ortalamayla yok olmaz
+
+    Kaba bir izgarada rastgele vektorler uretilip aralari yumusak
+    interpolasyonla doldurulur; boylece komsu noktalarda sapma benzer olur --
+    gercek kalibrasyon artigi da boyledir.
+    """
+    from scipy.interpolate import RegularGridInterpolator
+
+    yIzgara = np.linspace(-5.0, gen + 5.0, 5)
+    xIzgara = np.linspace(-5.0, uz + 5.0, 7)
+    kaba = rng.normal(0, 1.0, (len(yIzgara), len(xIzgara), 2))
+    # Agir kuyruk: gercek kalibrasyon artigi duzgun dagilmaz. Tiklanan bolgelerde
+    # kucuk, ekstrapolasyon yapilan uzak koselerde birkac metre olabilir. Genligi
+    # ussune yukseltmek bu "bazi bolgeler cok daha kotu" desenini uretir; yonu
+    # korur, sadece buyuklugu carpitir.
+    if SAPMA_KUYRUK != 1.0:
+        buyukluk = np.linalg.norm(kaba, axis=2, keepdims=True)
+        kaba = kaba / np.maximum(buyukluk, 1e-9) * buyukluk ** SAPMA_KUYRUK
+    yorumlayici = RegularGridInterpolator((yIzgara, xIzgara), kaba,
+                                          bounds_error=False, fill_value=None)
+
+    def sapma(p: np.ndarray, uzaklik: float, tabanGenlik: float, olcekGenlik: float):
+        yon = yorumlayici(np.array([[p[1], p[0]]]))[0]
+        genlik = tabanGenlik + olcekGenlik * (uzaklik / 20.0) ** SAPMA_US
+        return yon * genlik
+
+    return sapma
+
+
 def _gozlemUret(gercek, zamanlar, renkler, kameraKonumu, rng, a: Ayarlar):
-    """Bir kameranin gozlemleri: kacirilan tespitler, mesafeyle buyuyen konum hatasi.
+    """Bir kameranin gozlemleri: kacirilan tespitler, sistematik sapma, rastgele gurultu.
 
     Gercek veriden olculen davranis: guven yakin yarida 0,856, uzak yarida 0,705;
-    kare basina 12,66/14 tespit. Hata modelinin mesafeyle buyumesi kritik --
-    kameralarin birbirini tamamlamasinin sebebi bu ve fuzyon agirliklandirmasi
-    tam olarak buna dayanacak.
+    kare basina 12,66/14 tespit. Hatanin mesafeyle buyumesi kritik -- kameralarin
+    birbirini tamamlamasinin sebebi bu ve fuzyon agirliklandirmasi buna dayanir.
     """
+    sapmaFn = _sapmaAlani(rng, a.saha.uzunluk, a.saha.genislik)
     T, n, _ = gercek.shape
     kareler = []
     for k in range(T):
@@ -211,17 +295,23 @@ def _gozlemUret(gercek, zamanlar, renkler, kameraKonumu, rng, a: Ayarlar):
             if rng.random() > olasilik:
                 continue
 
-            # Konum hatasi mesafenin karesiyle buyur: ayak noktasindaki 1-2
-            # piksellik hata uzakta metrelere karsilik gelir.
-            sigma = 0.08 + 0.12 * (d / 20.0) ** 2
+            # (1) SISTEMATIK sapma: kalibrasyon artigi. Konuma bagli, zamanla
+            #     sabit. Iki kameranin uyusmazligini (medyan 0,85 m) ureten sey.
+            #     Kare-basi adimi etkilemez, cunku oyuncu 0,15 m giderken sapma
+            #     neredeyse ayni kalir.
+            sapma = sapmaFn(p, d, SAPMA_TABAN, SAPMA_OLCEK)
 
-            # Agir kuyruk: hatalarin kucuk bir kismi cok buyuk. Ortulme, iki
-            # oyuncuyu kapsayan kutu, yansima, havada olan ayak. Saf Gauss bunu
-            # uretmez -- ama gercek veride VAR: iki kameranin uyusmazliginin
-            # medyani 0,85 m iken %8'i 2 m'nin disinda. Kimligi bozan sey tam
-            # olarak bu kuyruk, dolayisiyla modelde bulunmasi sart.
-            kabaHata = rng.random() < 0.04
-            olculen = p + rng.normal(0, sigma * (7.0 if kabaHata else 1.0), 2)
+            # (2) RASTGELE gurultu: kareden kareye degisen tespit gurultusu.
+            #     Kare-basi adimini (p90 0,44 m) uretensey. Kucuk olmasi sart --
+            #     buyuk olsaydi gercek veride adim p90'i bu kadar dusuk cikmazdi.
+            sigma = RASTGELE_TABAN + RASTGELE_OLCEK * (d / 20.0) ** 2
+
+            # (3) AGIR KUYRUK: hatalarin kucuk bir kismi cok buyuk. Ortulme, iki
+            #     oyuncuyu kapsayan kutu, yansima, havada olan ayak. Gercek veride
+            #     adim p99'u 1,13 m ve uyusmazligin %8'i 2 m'nin disinda; ikisi de
+            #     saf Gauss'un uretemeyecegi kuyruklar. Kimligi bozan sey bu.
+            kabaHata = rng.random() < KABA_HATA_ORANI
+            olculen = p + sapma + rng.normal(0, sigma * (KABA_HATA_OLCEK if kabaHata else 1.0), 2)
             guven = float(np.clip(rng.normal(1.00 - 0.0066 * d, 0.06), 0.25, 0.99))
 
             ton, doy, parl, siyah = renkler[i]
@@ -260,9 +350,15 @@ def sahneIstatistikleri(sahne: Sahne) -> dict[str, float]:
     g = sahne.gercekKonum
     adim = np.linalg.norm(np.diff(g, axis=0), axis=2).ravel()
 
+    # Komsu mesafesi de GOZLEM uzerinden olculur -- gercek veride kamera 1'in
+    # tespitleri arasindaki mesafeyi olcmustum. Gercek konumdan olcmek farkli bir
+    # buyukluktur ve iki sayiyi kiyaslamak yanlis olur.
     komsu = []
-    for k in range(sahne.kareSayisi):
-        d = np.linalg.norm(g[k][:, None, :] - g[k][None, :, :], axis=2)
+    for kare in sahne.gozlemler[1]:
+        if len(kare) < 2:
+            continue
+        P = np.array([[o["x_m"], o["y_m"]] for o in kare])
+        d = np.linalg.norm(P[:, None, :] - P[None, :, :], axis=2)
         np.fill_diagonal(d, np.inf)
         komsu.append(d.min(axis=1))
     komsu = np.concatenate(komsu)
@@ -273,10 +369,18 @@ def sahneIstatistikleri(sahne: Sahne) -> dict[str, float]:
     uzak = [s["guven"] for s in tumGozlem if s["x_m"] > 25]
 
     uyusmazlik = kameraUyusmazligi(sahne)
+    gozlemAdim = gozlemAdimi(sahne, 1)
 
     return {
-        "adimMedyan": float(np.median(adim)),
-        "adimP90": float(np.percentile(adim, 90)),
+        # DIKKAT: gercek veriyle kiyaslanacak olan GOZLEM adimidir, gercek konum
+        # adimi degil. kamera1_izler.csv'deki 0,15 / 0,44 m degerleri ayni iz_id'nin
+        # ardisik karelerdeki yer degistirmesi, yani gurultu DAHIL. Bu ayrimi
+        # atlamak sentetik sahneyi 4,5 kat fazla gurultulu yapmisti.
+        "adimMedyan": float(np.median(gozlemAdim)),
+        "adimP90": float(np.percentile(gozlemAdim, 90)),
+        "adimP99": float(np.percentile(gozlemAdim, 99)),
+        "gercekAdimMedyan": float(np.median(adim)),
+        "gercekAdimP90": float(np.percentile(adim, 90)),
         "komsuP10": float(np.percentile(komsu, 10)),
         "komsuMedyan": float(np.median(komsu)),
         "kareBasinaTespit": float(np.mean(tespitSayisi)),
@@ -287,6 +391,22 @@ def sahneIstatistikleri(sahne: Sahne) -> dict[str, float]:
         "xMin": float(g[..., 0].min()), "xMaks": float(g[..., 0].max()),
         "yMin": float(g[..., 1].min()), "yMaks": float(g[..., 1].max()),
     }
+
+
+def gozlemAdimi(sahne: Sahne, kamera: int) -> np.ndarray:
+    """Ayni kameranin ardisik karelerinde ayni kisinin yer degistirmesi.
+
+    Gercek veride olculen buyuklugun BIREBIR karsiligi: kamera1_izler.csv'de ayni
+    iz_id'nin ardisik iki karedeki mesafesi. Gurultu dahildir.
+    """
+    adim = []
+    kareler = sahne.gozlemler[kamera]
+    for k in range(len(kareler) - 1):
+        a = {s["oyuncu"]: (s["x_m"], s["y_m"]) for s in kareler[k] if s["oyuncu"] >= 0}
+        b = {s["oyuncu"]: (s["x_m"], s["y_m"]) for s in kareler[k + 1] if s["oyuncu"] >= 0}
+        for i in a.keys() & b.keys():
+            adim.append(float(np.hypot(a[i][0] - b[i][0], a[i][1] - b[i][1])))
+    return np.array(adim)
 
 
 def kameraUyusmazligi(sahne: Sahne) -> np.ndarray:
@@ -310,6 +430,7 @@ def kameraUyusmazligi(sahne: Sahne) -> np.ndarray:
 GERCEK_OLCUMLER = {
     "adimMedyan": 0.15, "adimP90": 0.44,
     "komsuP10": 2.23, "komsuMedyan": 5.07,
+    "adimP99": 1.13,
     "kareBasinaTespit": 12.66,
     "guvenYakin": 0.856, "guvenUzak": 0.705,
     "uyusmazlikMedyan": 0.85, "uyusmazlik2mOran": 92.0,
@@ -344,10 +465,11 @@ def selftest() -> None:
         assert (1 / tolerans <= oran <= tolerans) if birim == "kat" else oran <= tolerans, \
             "%s: sentetik %.3f, gercek %.3f" % (anahtar, s, g)
 
-    yakinMi("adimMedyan", 1.45)
-    yakinMi("adimP90", 1.30)
+    yakinMi("adimMedyan", 1.60)
+    yakinMi("adimP90", 1.15)
+    yakinMi("adimP99", 1.15)
     yakinMi("komsuP10", 1.20)
-    yakinMi("komsuMedyan", 1.25)
+    yakinMi("komsuMedyan", 1.20)
     yakinMi("kareBasinaTespit", 1.05)
     yakinMi("guvenYakin", 0.06, "fark")
     yakinMi("guvenUzak", 0.10, "fark")
@@ -383,22 +505,29 @@ def selftest() -> None:
     # Konum hatasi mesafeyle buyumeli. Fuzyon agirliklandirmasinin (1/sigma^2)
     # tum dayanagi bu; hata mesafeden bagimsiz olsaydi esit agirlikli ortalama
     # dogru olurdu ve raporun 4 numarali acik sorunu diye bir sey olmazdi.
-    hatalar = {"yakin": [], "uzak": []}
+    #
+    # Olcum MESAFE BANTLARINDA yapilir, kaba bir yakin/uzak bolmesiyle degil:
+    # kamera kale cizgisinin 6 m disinda durdugu icin "yakin yari" bile
+    # cogunlukla 20-30 m bandindadir ve iki kovaya bolmek gradyani gizler.
+    bantlar: dict[int, list[float]] = {}
     for k, kare in enumerate(sahne.gozlemler[1]):
         for s in kare:
             if s["oyuncu"] < 0:
                 continue
             p = sahne.gercekKonum[k, s["oyuncu"]]
             h = float(np.hypot(s["x_m"] - p[0], s["y_m"] - p[1]))
-            hatalar["yakin" if s["uzaklik"] < 25 else "uzak"].append(h)
-    hataOrani = np.median(hatalar["uzak"]) / np.median(hatalar["yakin"])
-    assert hataOrani > 2.0, (hataOrani, np.median(hatalar["yakin"]), np.median(hatalar["uzak"]))
+            bantlar.setdefault(int(s["uzaklik"] // 10) * 10, []).append(h)
+
+    doluBantlar = sorted(b for b in bantlar if len(bantlar[b]) >= 100)
+    enYakin = float(np.median(bantlar[doluBantlar[0]]))
+    enUzak = float(np.median(bantlar[doluBantlar[-1]]))
+    assert enUzak > 3.0 * enYakin, (doluBantlar, enYakin, enUzak)
 
     # ASIL CIPA: iki kameranin uyusmazligi. Dogru cevabi bilmeye gerek duymayan,
     # gercek veride dogrudan olculmus bir buyukluk -- medyan 0,85 m, %92'si 2 m
     # icinde. Gurultu modelinin gercekciliginin tek nesnel kaniti bu.
     yakinMi("uyusmazlikMedyan", 1.15)
-    assert abs(ist["uyusmazlik2mOran"] - GERCEK_OLCUMLER["uyusmazlik2mOran"]) < 3.0, \
+    assert abs(ist["uyusmazlik2mOran"] - GERCEK_OLCUMLER["uyusmazlik2mOran"]) < 3.5, \
         ist["uyusmazlik2mOran"]
 
     # Takim renkleri ayrismali: siyah forma vs yelek, siyahlik ekseninde
