@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.mp4
+*.mkv
+*.avi
+*.mov
+*.pt
+*.engine
+*.onnx
+kosular/
+ciktilar/uretilen/
+.DS_Store
+.idea/
+.vscode/
