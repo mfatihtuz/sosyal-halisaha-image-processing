@@ -166,18 +166,47 @@ def _ffmpegDenetle(r: Rapor) -> None:
         r.ekle("uyari", "ffmpeg", "calistirilamadi: %s" % str(e)[:40])
 
 
-def _cekirdekDenetle(r: Rapor) -> None:
-    """Kendi modullerimizin selftest'leri geciyor mu."""
+# Selftest'i olan tum cekirdek modulleri. Yenisi eklendiginde buraya da eklenir.
+SELFTEST_MODULLERI = [
+    "cekirdek.veriSemasi",
+    "cekirdek.ayarlar",
+    "cekirdek.lensModeli",
+    "cekirdek.kameraKaynastirma",
+    "cekirdek.kimlikCozucu",
+    "sentetikSahne",
+    "puanla",
+]
+
+
+def _cekirdekDenetle(r: Rapor, hizli: bool) -> None:
+    """Kendi modullerimizin selftest'leri geciyor mu.
+
+    Bunlar GPU ve video gerektirmez; ortam bozuldugunda ilk burada belli olur.
+    """
+    import contextlib
+    import io
     from pathlib import Path
+
     kok = Path(__file__).resolve().parent.parent
     sys.path.insert(0, str(kok))
-    for modulYolu in ("cekirdek.veriSemasi", "cekirdek.ayarlar"):
+    sys.path.insert(0, str(kok / "testler"))
+
+    # Sentetik sahne uretimi birkac saniye surer; hizli modda atlanir.
+    yavaslar = {"cekirdek.kameraKaynastirma", "cekirdek.kimlikCozucu",
+                "sentetikSahne", "puanla"}
+
+    for modulYolu in SELFTEST_MODULLERI:
+        kisaAd = modulYolu.split(".")[-1]
+        if hizli and modulYolu in yavaslar:
+            r.ekle("ok", kisaAd, "atlandi (--hizli)")
+            continue
         try:
             m = importlib.import_module(modulYolu)
-            m.selftest()
-            r.ekle("ok", modulYolu, "selftest gecti")
+            with contextlib.redirect_stdout(io.StringIO()):
+                m.selftest()
+            r.ekle("ok", kisaAd, "selftest gecti")
         except Exception as e:
-            r.ekle("hata", modulYolu, "selftest BASARISIZ: %s" % str(e)[:60])
+            r.ekle("hata", kisaAd, "selftest BASARISIZ: %s" % str(e)[:60])
 
 
 def calistir(hizli: bool = False) -> int:
@@ -188,7 +217,7 @@ def calistir(hizli: bool = False) -> int:
     yuklenen = _paketleriDenetle(r)
     _torchDenetle(r, yuklenen, hizli)
     _ffmpegDenetle(r)
-    _cekirdekDenetle(r)
+    _cekirdekDenetle(r, hizli)
     r.yazdir()
     return 1 if r.hata else 0
 
